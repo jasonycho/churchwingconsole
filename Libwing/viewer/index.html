@@ -271,6 +271,13 @@ table.sgrid td.mainon { color: var(--accent); }
 .opt { font-size: 12px; padding: 2px 8px; border-radius: 10px; background: var(--soft); }
 .opt.cur { background: var(--accent); color: var(--accent-ink); }
 
+/* export one page (PNG / HTML) */
+.vexport { float: right; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 4px 0 8px 12px; font-size: 12px; }
+.xnote { font-size: 11px; color: var(--muted); margin-bottom: 6px; }
+.xpage button, .xpage [data-topo] { cursor: default; }
+.xshot .gridwrap { max-height: none; overflow: visible; }
+.xshot .topo-scroll, .xshot .tscroll { overflow: visible; }
+
 /* empty state */
 #empty { max-width: 720px; margin: 40px auto; }
 
@@ -288,7 +295,7 @@ table.sgrid td.mainon { color: var(--accent); }
 /* printing */
 #printAll { display: none; }
 @media print {
-  header.top, #drawer, .vfoot, .toolbar input, #banner { display: none !important; }
+  header.top, #drawer, .vfoot, .vexport, .toolbar input, #banner { display: none !important; }
   body { background: #fff; }
   body.printing-all main { display: none; }
   body.printing-all #printAll { display: block; }
@@ -842,9 +849,11 @@ function srcText(p) {
   return main + sub;
 }
 
+// Every page except the settings tree can be saved on its own (see exportPage in #ui-code).
+const EXPORT_BTNS = `<div class="vexport"><span class="muted">Export this page:</span><button class="btn" data-export="png" title="Save this page as a high-resolution picture">PNG</button><button class="btn" data-export="html" title="Save this page as a stand-alone web page">HTML</button></div>`;
 function viewHead(id, lead) {
   const v = viewById(id);
-  return `<div class="vhead"><h2>${esc(v.title)}</h2>${lead ? `<p class="lead">${lead}</p>` : ""}</div>`;
+  return `<div class="vhead">${id === "tree" ? "" : EXPORT_BTNS}<h2>${esc(v.title)}</h2>${lead ? `<p class="lead">${lead}</p>` : ""}</div>`;
 }
 function viewFoot(id) {
   const chain = VIEWS.filter((v) => v.chain);
@@ -941,7 +950,7 @@ function viewHome(sel) {
   const fitem = (f) => `<li class="${f.sev}"><button class="flink" data-strip="${f.strip}">${f.text}</button></li>`;
   const L = M.list;
   const cards = VIEWS.filter((v) => v.id !== "home").map((v) => `<a class="vcard" href="#/${v.id}"><b>${esc(v.title)}</b><span>${esc(VIEW_BLURB[v.id] || "")}</span></a>`).join("");
-  return `<div class="vhead"><h2>${esc(name || "Wing console")} <span class="muted">overview</span></h2>
+  return `<div class="vhead">${EXPORT_BTNS}<h2>${esc(name || "Wing console")} <span class="muted">overview</span></h2>
     <p class="lead">How signal moves through the console, left to right. Click any box to see what's in it; open it for the full page. Every name on every page can be clicked for that strip's details.</p></div>
     <div class="card topo-wrap"><div class="topo-scroll">${topoSvg(sel)}</div>${topoPreview(sel)}</div>
     <div class="cols2">
@@ -1405,6 +1414,8 @@ document.addEventListener("click", (e) => {
     const { arg } = parseHash();
     return go("home", arg === k ? "" : k);
   }
+  const ex = t.closest("[data-export]");
+  if (ex) return exportPage(ex.dataset.export);
   const ps = t.closest("[data-pref-set]");
   if (ps) { prefs[ps.dataset.prefSet] = ps.dataset.val; store.set("prefs", prefs); return render(); }
   const st = t.closest("[data-strip]");
@@ -1550,12 +1561,86 @@ function shareMap() {
   banner(`Downloaded <b>${esc(name)}</b> (${(html.length / 1e6).toFixed(1)} MB). It's one self-contained page: send it as is, and they just open it.`);
 }
 
+// ---------------------------------------------------------------- export one page
+// "Export this page" saves what's on screen: HTML is a stand-alone copy (same
+// look, no code, links and details drawer don't work); PNG is a 2x picture in
+// the light theme, drawn by the browser itself (SVG foreignObject -> canvas),
+// so it works offline. Safari refuses to save such a picture; Firefox is fine.
+function saveFile(name, blob) {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+}
+function exportName(ext) {
+  const { view, arg } = parseHash();
+  const d = new Date(((S.meta && S.meta.created) || Date.now() / 1000) * 1000);
+  const day = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const part = view === "home" && arg && !isItem(arg) ? `-${arg}` : view === "processing" ? `-${prefs.procTab || "ch"}` : "";
+  return `${view}${part} ${day}.${ext}`;
+}
+// A copy of the page on screen, without buttons that only work in the dashboard.
+function exportClone() {
+  const c = $("#view").cloneNode(true);
+  c.removeAttribute("id");
+  c.querySelectorAll(".vfoot, .vexport").forEach((x) => x.remove());
+  c.querySelectorAll(".flash").forEach((x) => x.classList.remove("flash"));
+  c.querySelectorAll('a[href^="#"]').forEach((a) => a.removeAttribute("href"));
+  const note = document.createElement("div");
+  note.className = "xnote";
+  note.textContent = `${raw("/$syscfg/consolename") || "Wing console"} · ${sourceLabel()} · exported ${new Date().toLocaleString([], { dateStyle: "medium", timeStyle: "short" })}`;
+  c.prepend(note);
+  return c;
+}
+async function exportPage(kind) {
+  const css = $("head style").textContent;
+  const name = exportName(kind);
+  if (kind === "html") {
+    const title = `${viewById(parseHash().view).title} · ${raw("/$syscfg/consolename") || "Wing console"}`;
+    const html = `<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n<meta name="viewport" content="width=device-width, initial-scale=1">\n<title>${esc(title)}</title>\n<style>${css}</style>\n</head>\n<body>\n<main class="xpage">${exportClone().outerHTML}</main>\n</body>\n</html>\n`;
+    saveFile(name, new Blob([html], { type: "text/html" }));
+    return banner(`Downloaded <b>${esc(name)}</b>. It's a stand-alone copy of this page; open it in any browser.`);
+  }
+  banner(`Making ${esc(name)}…`);
+  // Lay the copy out off screen at the page's width (wider if a table needs
+  // it, e.g. the send grid) to measure it, then draw it at twice that size.
+  const c = exportClone();
+  const host = document.createElement("div");
+  host.className = "xpage xshot";
+  host.style.cssText = `position:absolute;left:-100000px;top:0;width:${Math.ceil($("#view").getBoundingClientRect().width) + 32}px;padding:18px 16px;`;
+  host.appendChild(c);
+  document.body.appendChild(host);
+  let w, h;
+  try {
+    if (host.scrollWidth > host.offsetWidth) host.style.width = host.scrollWidth + "px";
+    w = host.offsetWidth; h = host.scrollHeight + 4;
+  } finally { host.remove(); }
+  const scale = Math.min(2, 16000 / w, 16000 / h, Math.sqrt(120e6 / (w * h)));
+  const W = Math.floor(w * scale), H = Math.floor(h * scale);
+  const body = `<div xmlns="http://www.w3.org/1999/xhtml" class="xpage xshot" style="width:${w}px;min-height:${h}px;padding:18px 16px;background:var(--bg);color:var(--ink);font:14px/1.45 -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;">${new XMLSerializer().serializeToString(c)}</div>`;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" data-theme="light" width="${W}" height="${H}" viewBox="0 0 ${w} ${h}"><style><![CDATA[${css}]]></style><foreignObject x="0" y="0" width="${w}" height="${h}">${body}</foreignObject></svg>`;
+  try {
+    const img = new Image();
+    await new Promise((res, rej) => { img.onload = res; img.onerror = () => rej(new Error("the browser couldn't draw this page")); img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg); });
+    const cv = document.createElement("canvas");
+    cv.width = W; cv.height = H;
+    cv.getContext("2d").drawImage(img, 0, 0, W, H);
+    const blob = await new Promise((res) => cv.toBlob(res, "image/png"));
+    if (!blob) throw new Error("the picture was too large");
+    saveFile(name, blob);
+    banner(`Downloaded <b>${esc(name)}</b> (${W.toLocaleString()} × ${H.toLocaleString()} px).`);
+  } catch (err) {
+    banner(`Couldn't make a PNG of this page: ${esc(err.message)}. Safari doesn't allow it; use Firefox, or export as HTML instead.`, true);
+  }
+}
+
 // ---------------------------------------------------------------- print
 function printAll() {
   const host = $("#printAll");
   const parts = [viewHome(""), viewSources(prefs), viewInputs(prefs), viewProcessing(Object.assign({}, prefs, { procTab: "ch" })), viewMonitors(prefs), viewFx(prefs), viewMains(), viewOutputs(prefs), viewControl(), viewGrid()];
   host.innerHTML = `<div class="print-title">${esc(sourceLabel())}</div>` + parts.map((p) => `<section class="ppage">${p}</section>`).join("");
-  host.querySelectorAll(".vfoot").forEach((x) => x.remove());
+  host.querySelectorAll(".vfoot, .vexport").forEach((x) => x.remove());
   host.querySelectorAll("details").forEach((d) => (d.open = true));
   document.body.classList.add("printing-all");
   const done = () => { document.body.classList.remove("printing-all"); host.innerHTML = ""; window.removeEventListener("afterprint", done); };
