@@ -1,0 +1,42 @@
+[package]
+name = "libwing"
+version = "1.0.5"
+license = "MIT"
+readme = "README.md"
+homepage = "https://github.com/dannyfiresnake/libwing"
+edition = "2021"
+description = "A library for communicationg with the Behringer Wing Digital Mixer"
+documentation = "https://docs.rs/libwing"
+
+[lib]
+name = "libwing"
+crate-type = ["rlib", "cdylib"]
+
+[dependencies]
+socket2 = "0.5"
+lazy_static = "1.4"
+jzon = "0.12.5"
+thiserror = "2.0.11"
+
+[dev-dependencies]
+eframe = "0.26.0"
+
+[[example]]
+name = "wingmeters"
+path = "tools/wingmeters.rs"
+
+[[example]]
+name = "wingmon"
+path = "tools/wingmon.rs"
+
+[[example]]
+name = "wingschema"
+path = "tools/wingschema.rs"
+
+[[example]]
+name = "wingprop"
+path = "tools/wingprop.rs"
+
+[[example]]
+name = "wingmap"
+path = "tools/wingmap.rs"

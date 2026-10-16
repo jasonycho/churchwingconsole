@@ -1,0 +1,79 @@
+name: Release Build
+
+on:
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            artifact_name: wing-tools-linux
+            asset_name: wing-linux-v
+          - os: windows-latest
+            artifact_name: wing-tools-windows
+            asset_name: wing-windows-v
+          - os: macos-latest
+            artifact_name: wing-tools-macos
+            asset_name: wing-macos-v
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Get Version
+      id: get_version
+      shell: bash
+      run: |
+        VERSION=$(grep '^version = ' Cargo.toml | cut -d '"' -f 2)
+        echo "VERSION=$VERSION" >> $GITHUB_ENV
+    - uses: actions-rust-lang/setup-rust-toolchain@v1
+
+    - name: Build all targets
+      run: |
+        cargo build --release --all-targets
+
+    - name: Package MacOS Build
+      if: matrix.os == 'macos-latest'
+      run: |
+        mkdir -p ${{ matrix.artifact_name }}
+        cp target/release/examples/wingmon ${{ matrix.artifact_name }}/
+        cp target/release/examples/wingschema ${{ matrix.artifact_name }}/
+        cp target/release/examples/wingprop ${{ matrix.artifact_name }}/
+        cp target/release/examples/wingmeters ${{ matrix.artifact_name }}/
+        tar czf "${{ matrix.asset_name }}${{ env.VERSION }}.tar.gz" ${{ matrix.artifact_name }}
+
+    - name: Package Linux Build
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        mkdir -p ${{ matrix.artifact_name }}
+        cp target/release/examples/wingmon ${{ matrix.artifact_name }}/
+        cp target/release/examples/wingschema ${{ matrix.artifact_name }}/
+        cp target/release/examples/wingprop ${{ matrix.artifact_name }}/
+        cp target/release/examples/wingmeters ${{ matrix.artifact_name }}/
+        tar czf "${{ matrix.asset_name }}${{ env.VERSION }}.tar.gz" ${{ matrix.artifact_name }}
+
+    - name: Package Windows Build
+      if: matrix.os == 'windows-latest'
+      run: |
+        mkdir ${{ matrix.artifact_name }}
+        copy target\release\examples/wingmon.exe ${{ matrix.artifact_name }}\
+        copy target\release\examples/wingschema.exe ${{ matrix.artifact_name }}\
+        copy target\release\examples/wingprop.exe ${{ matrix.artifact_name }}\
+        copy target\release\examples/wingmeters.exe ${{ matrix.artifact_name }}\
+        7z a "${{ matrix.asset_name }}${{ env.VERSION }}.zip" ${{ matrix.artifact_name }}
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: ${{ matrix.asset_name }}${{ env.VERSION }}.*
+        tag_name: v${{ env.VERSION }}
+        generate_release_notes: true

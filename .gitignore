@@ -1,0 +1,18 @@
+# macOS
+.DS_Store
+
+# Third-party documents (kept locally, not published)
+*.pdf
+
+# Console data: names, network address and settings of the church console.
+# Kept on this Mac only; the repo is public.
+*.snap
+Libwing/maps/church-wing-map.*
+Libwing/maps/archive/
+Libwing/maps/snapmap/
+Libwing/maps/diagram.txt
+Libwing/maps/diagram.dot
+Libwing/maps/pages/
+
+# Rust build output
+Libwing/target/

@@ -1,0 +1,489 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wing Map Viewer</title>
+<style>
+:root {
+  --bg: #f6f7f9; --panel: #ffffff; --ink: #1c2026; --muted: #646b76; --line: #dfe2e7;
+  --accent: #2f6fdb; --accent-soft: #e3ecfb; --warn: #b4441f; --warn-soft: #fbe9e2;
+  --ok: #23824f; --row-hover: #f0f2f5; --sel: #dbe7fb; --mono: ui-monospace, "SF Mono", Menlo, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #14171c; --panel: #1c2027; --ink: #e4e7ec; --muted: #9aa2ae; --line: #2e343d;
+    --accent: #6b9bf0; --accent-soft: #233350; --warn: #f08a63; --warn-soft: #3d251c;
+    --ok: #5fc48c; --row-hover: #242932; --sel: #2a3a57; color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; display: flex; flex-direction: column; }
+header { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; padding: 12px 20px; background: var(--panel); border-bottom: 1px solid var(--line); }
+header h1 { font-size: 17px; margin: 0; }
+#source { color: var(--muted); font-size: 13px; flex: 1; min-width: 200px; }
+#source b { color: var(--ink); font-weight: 600; }
+.btn { font: inherit; font-size: 13px; padding: 6px 12px; border-radius: 6px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); cursor: pointer; }
+.btn:hover { background: var(--row-hover); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.primary:hover { filter: brightness(1.08); }
+#banner { padding: 8px 20px; background: var(--warn-soft); color: var(--warn); font-size: 13px; border-bottom: 1px solid var(--line); }
+nav { display: flex; gap: 4px; padding: 0 20px; background: var(--panel); border-bottom: 1px solid var(--line); }
+nav button { font: inherit; padding: 10px 14px; border: 0; border-bottom: 2px solid transparent; background: none; color: var(--muted); cursor: pointer; }
+nav button.active { color: var(--ink); border-bottom-color: var(--accent); font-weight: 600; }
+main { flex: 1; min-height: 0; display: flex; }
+.view { flex: 1; min-height: 0; }
+#treeView { display: flex; }
+#treeView[hidden], #flowView[hidden] { display: none; }
+.side { width: min(520px, 55%); display: flex; flex-direction: column; border-right: 1px solid var(--line); background: var(--panel); }
+.searchbar { padding: 10px; border-bottom: 1px solid var(--line); }
+.searchbar input { width: 100%; font: inherit; padding: 7px 10px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); }
+#searchInfo { color: var(--muted); font-size: 12px; margin-top: 6px; min-height: 16px; }
+#tree, #results { flex: 1; overflow: auto; padding: 6px 0; font-size: 13px; }
+.row { display: flex; align-items: center; gap: 6px; padding: 2px 10px 2px 0; cursor: pointer; white-space: nowrap; }
+.row:hover { background: var(--row-hover); }
+.row.sel { background: var(--sel); }
+.caret { width: 16px; flex: none; text-align: center; color: var(--muted); font-size: 10px; }
+.nm { font-family: var(--mono); }
+.ln { color: var(--muted); overflow: hidden; text-overflow: ellipsis; }
+.cnt { margin-left: auto; color: var(--muted); font-size: 11px; padding-left: 8px; }
+.val { margin-left: auto; font-family: var(--mono); font-size: 12px; color: var(--accent); padding-left: 8px; overflow: hidden; text-overflow: ellipsis; max-width: 45%; }
+.res { padding: 4px 12px; cursor: pointer; }
+.res:hover { background: var(--row-hover); }
+.res .nm { font-size: 12px; }
+#detail { flex: 1; overflow: auto; padding: 20px 24px; }
+#detail h2 { font-family: var(--mono); font-size: 15px; margin: 0 0 4px; word-break: break-all; }
+#detail .sub { color: var(--muted); margin-bottom: 16px; }
+table.kv { border-collapse: collapse; }
+table.kv td { padding: 5px 16px 5px 0; vertical-align: top; border-bottom: 1px solid var(--line); }
+table.kv td:first-child { color: var(--muted); white-space: nowrap; }
+.chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.chip { font-size: 12px; padding: 2px 8px; border-radius: 10px; background: var(--accent-soft); color: var(--ink); white-space: nowrap; }
+.chip.cur { background: var(--accent); color: #fff; }
+.childlist a { font-family: var(--mono); color: var(--accent); cursor: pointer; margin-right: 10px; display: inline-block; }
+.empty { color: var(--muted); padding: 40px 24px; max-width: 640px; }
+.empty code, .note code { font-family: var(--mono); background: var(--row-hover); padding: 1px 5px; border-radius: 4px; }
+#flowView { overflow: auto; padding: 20px; }
+#flowView h3 { margin: 28px 0 10px; font-size: 15px; }
+#flowView h3:first-child { margin-top: 0; }
+.note { color: var(--muted); font-size: 13px; margin: 0 0 10px; }
+.toolbar { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; margin-bottom: 12px; font-size: 13px; }
+.strips { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 10px; }
+.strip { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px 10px 16px; position: relative; overflow: hidden; }
+.strip .bar { position: absolute; left: 0; top: 0; bottom: 0; width: 5px; }
+.strip .top { display: flex; align-items: baseline; gap: 8px; }
+.strip .num { color: var(--muted); font-size: 12px; font-family: var(--mono); }
+.strip .title { font-weight: 600; }
+.strip .muted { margin-left: auto; font-size: 11px; font-weight: 600; color: var(--warn); background: var(--warn-soft); padding: 1px 6px; border-radius: 4px; }
+.strip .src { color: var(--muted); font-size: 12px; margin: 4px 0 8px; }
+.strip .src b { color: var(--ink); font-weight: 500; }
+.flowarrow { color: var(--muted); font-size: 12px; margin-bottom: 4px; }
+.scroll { overflow-x: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; }
+table.matrix { border-collapse: separate; border-spacing: 0; font-size: 12px; }
+table.matrix th, table.matrix td { border-bottom: 1px solid var(--line); border-right: 1px solid var(--line); padding: 0; text-align: center; }
+table.matrix thead th { position: sticky; top: 0; background: var(--panel); font-weight: 500; color: var(--muted); padding: 6px 2px; z-index: 1; }
+table.matrix thead th .vh { writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap; max-height: 110px; overflow: hidden; text-overflow: ellipsis; display: inline-block; }
+table.matrix thead th.grp { border-bottom: 2px solid var(--accent); color: var(--ink); font-weight: 600; }
+table.matrix tbody th { position: sticky; left: 0; background: var(--panel); text-align: left; padding: 4px 10px; font-weight: 500; white-space: nowrap; z-index: 1; }
+table.matrix td { width: 34px; min-width: 34px; height: 26px; cursor: pointer; }
+table.matrix td.on { background: var(--accent); color: #fff; font-size: 10px; }
+table.matrix td.off::after { content: "·"; color: var(--line); font-size: 16px; }
+table.matrix td:hover { outline: 2px solid var(--accent); outline-offset: -2px; }
+table.list { border-collapse: collapse; width: 100%; font-size: 13px; }
+table.list th, table.list td { text-align: left; padding: 6px 12px; border-bottom: 1px solid var(--line); }
+table.list th { color: var(--muted); font-weight: 500; }
+@media (max-width: 760px) {
+  #treeView { flex-direction: column; }
+  .side { width: 100%; height: 55%; border-right: 0; border-bottom: 1px solid var(--line); }
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>Wing Map Viewer</h1>
+  <div id="source">Loading…</div>
+  <label class="btn primary">Open map file…<input id="file" type="file" accept=".jsonl,.json,.txt" hidden></label>
+  <button class="btn" id="useSample">Use bundled map</button>
+  <button class="btn" id="useDemo">Demo signal flow</button>
+</header>
+<div id="banner" hidden></div>
+<nav>
+  <button data-view="treeView" class="active">Settings tree</button>
+  <button data-view="flowView">Signal flow</button>
+</nav>
+<main>
+  <section id="treeView" class="view">
+    <div class="side">
+      <div class="searchbar">
+        <input id="search" type="search" placeholder="Search settings, e.g. ch 1 mute, trim, AES50…" autocomplete="off">
+        <div id="searchInfo"></div>
+      </div>
+      <div id="tree"></div>
+      <div id="results" hidden></div>
+    </div>
+    <div id="detail"><div class="empty">Select a setting on the left to see its details.</div></div>
+  </section>
+  <section id="flowView" class="view" hidden></section>
+</main>
+
+<script src="sample-data.js"></script>
+<script>
+"use strict";
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+let S = null; // { nodes: Map(path -> node), root, hasValues, label }
+let selected = null;
+const rowEls = new Map();
+
+// ---------- parsing ----------
+function parse(text, label) {
+  const nodes = new Map();
+  const root = { path: "", name: "/", children: [], def: null };
+  nodes.set("", root);
+  let bad = 0, values = 0;
+  for (const line of text.split("\n")) {
+    const t = line.trim();
+    if (!t) continue;
+    let d;
+    try { d = JSON.parse(t); } catch { bad++; continue; }
+    if (!d || typeof d.fullname !== "string") { bad++; continue; }
+    let n = nodes.get(d.fullname);
+    if (!n) { n = { path: d.fullname, name: d.fullname.slice(d.fullname.lastIndexOf("/") + 1), children: [] }; nodes.set(d.fullname, n); }
+    n.def = d;
+    if ("value" in d) values++;
+  }
+  const link = (n) => {
+    if (n.linked || n === root) return;
+    n.linked = true;
+    const pp = n.path.slice(0, n.path.lastIndexOf("/"));
+    let p = nodes.get(pp);
+    if (!p) { p = { path: pp, name: pp.slice(pp.lastIndexOf("/") + 1), children: [], def: null }; nodes.set(pp, p); }
+    p.children.push(n);
+    link(p);
+  };
+  for (const n of [...nodes.values()]) link(n);
+  const count = (n) => { n.leaves = n.children.length ? n.children.reduce((a, c) => a + count(c), 0) : 1; return n.leaves; };
+  count(root);
+  return { nodes, root, hasValues: values > 0, values, bad, label, total: nodes.size - 1 };
+}
+
+function load(state, opts = {}) {
+  S = state;
+  selected = null;
+  $("#source").innerHTML = `<b>${esc(state.label)}</b> · ${state.total.toLocaleString()} settings` +
+    (state.hasValues ? ` · ${state.values.toLocaleString()} with current values` : " · structure only (no values)") +
+    (state.bad ? ` · ${state.bad} unreadable lines skipped` : "");
+  const banner = $("#banner");
+  banner.hidden = !opts.banner;
+  banner.textContent = opts.banner || "";
+  $("#search").value = "";
+  showTree();
+  renderTree();
+  $("#detail").innerHTML = `<div class="empty">Select a setting on the left to see its details.</div>`;
+  renderFlow();
+}
+
+// ---------- value helpers ----------
+const node = (p) => S.nodes.get(p);
+const val = (p) => { const n = node(p); return n && n.def && "value" in n.def ? String(n.def.value) : undefined; };
+function enumItem(def, v) {
+  const items = def && def.items;
+  if (!items || v === undefined) return undefined;
+  let it = items.find((i) => String(i.item) === v);
+  if (!it && /^\d+$/.test(v) && items[+v]) it = items[+v];
+  return it;
+}
+function fmt(def, v) {
+  if (v === undefined) return "";
+  const it = enumItem(def, v);
+  if (it) return it.longitem && it.longitem !== it.item ? `${it.item} (${it.longitem})` : String(it.item);
+  const num = Number(v);
+  if (def && def.unit && v !== "" && !isNaN(num)) {
+    if (def.unit === "dB" && num <= -140) return "−∞ dB";
+    return `${+num.toFixed(2)} ${def.unit}`;
+  }
+  return v === "" ? '""' : v;
+}
+
+// ---------- tree ----------
+function makeRow(n, depth) {
+  const el = document.createElement("div");
+  el.className = "row";
+  el.style.paddingLeft = 8 + depth * 16 + "px";
+  const hasKids = n.children.length > 0;
+  const d = n.def || {};
+  const right = hasKids ? `<span class="cnt">${n.leaves.toLocaleString()}</span>`
+    : ("value" in d ? `<span class="val">${esc(fmt(d, String(d.value)))}</span>` : "");
+  el.innerHTML = `<span class="caret">${hasKids ? "▶" : ""}</span><span class="nm">${esc(n.name || "/")}</span>` +
+    (d.longname ? `<span class="ln">${esc(d.longname)}</span>` : "") + right;
+  el.onclick = (e) => { if (hasKids && (e.target.classList.contains("caret") || n === selected)) toggle(n); select(n); };
+  el.ondblclick = () => hasKids && toggle(n);
+  rowEls.set(n.path, { el, n, depth, kids: null });
+  return el;
+}
+function toggle(n, open) {
+  const r = rowEls.get(n.path);
+  if (!r) return;
+  const isOpen = !!(r.kids && !r.kids.hidden);
+  const want = open === undefined ? !isOpen : open;
+  if (want && !r.kids) {
+    r.kids = document.createElement("div");
+    const frag = document.createDocumentFragment();
+    for (const c of n.children) frag.appendChild(makeRow(c, r.depth + 1));
+    r.kids.appendChild(frag);
+    r.el.after(r.kids);
+  }
+  if (r.kids) r.kids.hidden = !want;
+  r.el.querySelector(".caret").textContent = n.children.length ? (want ? "▼" : "▶") : "";
+}
+function renderTree() {
+  rowEls.clear();
+  const t = $("#tree");
+  t.innerHTML = "";
+  const frag = document.createDocumentFragment();
+  for (const c of S.root.children) frag.appendChild(makeRow(c, 0));
+  t.appendChild(frag);
+}
+function reveal(path) {
+  showTree();
+  switchView("treeView");
+  const n = node(path);
+  if (!n) return;
+  const parts = path.split("/").slice(1);
+  for (let i = 1; i < parts.length; i++) toggle(node("/" + parts.slice(0, i).join("/")), true);
+  select(n);
+  rowEls.get(path)?.el.scrollIntoView({ block: "center" });
+}
+function select(n) {
+  if (selected) rowEls.get(selected.path)?.el.classList.remove("sel");
+  selected = n;
+  rowEls.get(n.path)?.el.classList.add("sel");
+  const d = n.def || {};
+  const rows = [];
+  const add = (k, v) => rows.push(`<tr><td>${k}</td><td>${v}</td></tr>`);
+  if (d.longname) add("Name", esc(d.longname));
+  add("Path", `<span class="nm">${esc(n.path)}</span>`);
+  if (d.id !== undefined) add("ID", `<span class="nm">${d.id}</span>`);
+  add("Type", esc(d.type || "node"));
+  if (d.unit) add("Unit", esc(d.unit));
+  if (d.read_only) add("Read only", "yes");
+  if (d.minfloat !== undefined || d.maxfloat !== undefined) add("Range", `${d.minfloat ?? "?"} to ${d.maxfloat ?? "?"}` + (d.steps ? ` (${d.steps} steps)` : ""));
+  if (d.minint !== undefined || d.maxint !== undefined) add("Range", `${d.minint ?? "?"} to ${d.maxint ?? "?"}`);
+  if (d.maxstringlen) add("Max length", d.maxstringlen);
+  if ("value" in d) add("Current value", `<b>${esc(fmt(d, String(d.value)))}</b>`);
+  if (d.items) {
+    const cur = enumItem(d, "value" in d ? String(d.value) : undefined);
+    add("Options", `<div class="chips">${d.items.map((i) => `<span class="chip${i === cur ? " cur" : ""}" title="${esc(i.longitem || "")}">${esc(i.item)}${i.longitem && i.longitem !== i.item ? " · " + esc(i.longitem) : ""}</span>`).join("")}</div>`);
+  }
+  if (n.children.length) {
+    const kids = n.children.slice(0, 200).map((c) => `<a data-p="${esc(c.path)}">${esc(c.name)}</a>`).join("");
+    add(`Contains`, `${n.children.length} items, ${n.leaves.toLocaleString()} settings<div class="childlist" style="margin-top:6px">${kids}${n.children.length > 200 ? " …" : ""}</div>`);
+  }
+  $("#detail").innerHTML = `<h2>${esc(n.path || "/")}</h2><div class="sub">${esc(d.longname || "")}</div><table class="kv">${rows.join("")}</table>`;
+  $("#detail").querySelectorAll("a[data-p]").forEach((a) => (a.onclick = () => reveal(a.dataset.p)));
+}
+
+// ---------- search ----------
+let searchTimer;
+function showTree() { $("#tree").hidden = false; $("#results").hidden = true; $("#searchInfo").textContent = ""; }
+function runSearch(q) {
+  const terms = q.toLowerCase().split(/\s+/).filter(Boolean);
+  if (!terms.length || q.trim().length < 2) return showTree();
+  const hits = [];
+  let total = 0;
+  for (const n of S.nodes.values()) {
+    if (!n.path) continue;
+    const hay = (n.path + " " + (n.def?.longname || "") + " " + (n.def && "value" in n.def ? n.def.value : "")).toLowerCase().replace(/\//g, " ");
+    const words = hay.split(/\s+/);
+    if (terms.every((t) => (/^\d+$/.test(t) ? words.includes(t) : hay.includes(t)))) { total++; if (hits.length < 400) hits.push(n); }
+  }
+  const r = $("#results");
+  r.innerHTML = hits.map((n) => {
+    const d = n.def || {};
+    return `<div class="res" data-p="${esc(n.path)}"><div class="nm">${esc(n.path)}</div><div class="ln">${esc(d.longname || d.type || "")}${"value" in d ? " = " + esc(fmt(d, String(d.value))) : ""}</div></div>`;
+  }).join("");
+  r.querySelectorAll(".res").forEach((el) => (el.onclick = () => { $("#search").value = ""; reveal(el.dataset.p); }));
+  $("#tree").hidden = true;
+  r.hidden = false;
+  $("#searchInfo").textContent = total ? `${total.toLocaleString()} matches${total > hits.length ? `, showing first ${hits.length}` : ""}` : "No matches";
+}
+$("#search").addEventListener("input", (e) => { clearTimeout(searchTimer); searchTimer = setTimeout(() => runSearch(e.target.value), 150); });
+
+// ---------- signal flow ----------
+const COLORS = ["#8a94a6", "#3b7dd8", "#33a3c4", "#2fa36b", "#7fb83a", "#d8b62f", "#e08a2c", "#d9503f", "#d0457f", "#a35bd0", "#6a5fd6", "#9b8263"];
+const KIND = { ch: "Ch", aux: "Aux", bus: "Bus", main: "Main", mtx: "Mtx" };
+const numKids = (p) => (node(p)?.children || []).filter((c) => /^\d+$/.test(c.name)).length;
+const stripName = (k, i) => val(`/${k}/${i}/name`) || `${KIND[k] || k} ${i}`;
+const sourceOf = (base) => routeOf(`${base}/in/conn/grp`, `${base}/in/conn/in`);
+function routeOf(grpPath, inPath) {
+  const grp = val(grpPath), num = val(inPath);
+  if (grp === undefined) return null;
+  const it = enumItem(node(grpPath)?.def, grp);
+  const g = it ? String(it.item) : grp;
+  if (g === "OFF") return { off: true, text: "No source" };
+  const gname = it?.longitem || g;
+  const map = { BUS: "bus", MAIN: "main", MTX: "mtx" };
+  const name = map[g] ? stripName(map[g], num) : val(`/io/in/${g}/${num}/name`);
+  return { text: `${gname} ${num ?? ""}`.trim(), name };
+}
+function destinations() {
+  const cols = [];
+  for (let i = 1; i <= numKids("/main"); i++) cols.push({ grp: "Mains", label: stripName("main", i), rel: `main/${i}`, target: `/main/${i}` });
+  for (let i = 1; i <= numKids("/bus"); i++) cols.push({ grp: "Buses", label: stripName("bus", i), rel: `send/${i}`, target: `/bus/${i}` });
+  for (let i = 1; i <= numKids("/mtx"); i++) cols.push({ grp: "Matrix", label: stripName("mtx", i), rel: `send/MX${i}`, target: `/mtx/${i}` });
+  return cols;
+}
+function strips() {
+  const out = [];
+  for (const k of ["ch", "aux", "bus", "main"]) for (let i = 1; i <= numKids("/" + k); i++) out.push({ k, i, base: `/${k}/${i}` });
+  return out;
+}
+function sendState(base, col) {
+  const p = `${base}/${col.rel}`;
+  if (!node(p)) return null;
+  const on = val(`${p}/on`) === "1";
+  const lvlPath = `${p}/lvl`;
+  const lvl = val(lvlPath);
+  return { path: p, on, lvl: lvl === undefined ? "" : fmt(node(lvlPath)?.def, lvl) };
+}
+
+function renderFlow() {
+  const f = $("#flowView");
+  if (!S.hasValues) {
+    f.innerHTML = `<div class="empty"><h3>No current values in this file</h3>
+      <p>The signal-flow view needs a map that includes each setting's current value. The bundled map only lists the settings, so this view is empty.</p>
+      <p>When you're on the Wing's network, run this from the Libwing folder, then open the file here:</p>
+      <p><code>./target/debug/examples/wingmap -h &lt;mixer-ip&gt; -v -o church-wing-map.jsonl</code></p>
+      <p>To see what the view looks like, click <b>Demo signal flow</b> at the top. It fills in made-up example values.</p></div>`;
+    return;
+  }
+  const hideUnused = f.dataset.hide !== "0";
+  const cols = destinations();
+  const all = strips();
+  const used = (s) => {
+    const src = sourceOf(s.base);
+    return (src && !src.off) || !!val(`${s.base}/name`) || cols.some((c) => sendState(s.base, c)?.on);
+  };
+  const shown = hideUnused ? all.filter(used) : all;
+  const inputs = shown.filter((s) => s.k === "ch" || s.k === "aux");
+
+  const card = (s) => {
+    const col = COLORS[(+val(`${s.base}/col`) || 1) - 1] || COLORS[0];
+    const src = sourceOf(s.base);
+    const fdrP = `${s.base}/fdr`;
+    const sends = cols.map((c) => ({ c, st: sendState(s.base, c) })).filter((x) => x.st?.on);
+    return `<div class="strip"><div class="bar" style="background:${col}"></div>
+      <div class="top"><span class="num">${KIND[s.k]} ${s.i}</span><span class="title">${esc(stripName(s.k, s.i))}</span>
+      ${val(`${s.base}/mute`) === "1" ? `<span class="muted">MUTED</span>` : ""}</div>
+      <div class="src">${src ? (src.off ? "No source" : `From <b>${esc(src.text)}</b>${src.name ? ` · ${esc(src.name)}` : ""}`) : ""}
+      ${val(fdrP) !== undefined ? ` · fader ${esc(fmt(node(fdrP)?.def, val(fdrP)))}` : ""}</div>
+      <div class="flowarrow">Sends to</div>
+      <div class="chips">${sends.length ? sends.map((x) => `<span class="chip" title="${esc(x.st.lvl)}">${esc(x.c.label)}</span>`).join("") : `<span class="note" style="margin:0">nothing</span>`}</div></div>`;
+  };
+
+  // matrix header with group spans
+  const groups = [];
+  for (const c of cols) { const g = groups[groups.length - 1]; g && g.name === c.grp ? g.n++ : groups.push({ name: c.grp, n: 1 }); }
+  const head1 = `<tr><th></th>${groups.map((g) => `<th class="grp" colspan="${g.n}">${g.name}</th>`).join("")}</tr>`;
+  const head2 = `<tr><th></th>${cols.map((c) => `<th title="${esc(c.label)}"><span class="vh">${esc(c.label)}</span></th>`).join("")}</tr>`;
+  const body = shown.map((s) => `<tr><th>${KIND[s.k]} ${s.i} · ${esc(stripName(s.k, s.i))}</th>${cols.map((c) => {
+    const st = sendState(s.base, c);
+    if (!st) return `<td style="cursor:default"></td>`;
+    return `<td class="${st.on ? "on" : "off"}" data-p="${esc(st.path)}" title="${esc(`${stripName(s.k, s.i)} → ${c.label}: ${st.on ? "on" : "off"}${st.lvl ? ", " + st.lvl : ""}`)}">${st.on ? "●" : ""}</td>`;
+  }).join("")}</tr>`).join("");
+
+  // physical outputs
+  const outRows = [];
+  for (const g of node("/io/out")?.children || []) {
+    for (const o of g.children) {
+      const b = `/io/out/${g.name}/${o.name}`;
+      const src = routeOf(`${b}/grp`, `${b}/in`);
+      if (!src || src.off) continue;
+      outRows.push(`<tr><td><span class="nm">${esc(g.name)} ${esc(o.name)}</span></td><td>${esc(val(`${b}/name`) || "")}</td><td>← ${esc(src.text)}${src.name ? ` · <b>${esc(src.name)}</b>` : ""}</td></tr>`);
+    }
+  }
+
+  f.innerHTML = `
+    <div class="toolbar"><label><input type="checkbox" id="hideUnused" ${hideUnused ? "checked" : ""}> Hide strips with no name, source or sends</label>
+      <span class="note" style="margin:0">${shown.length} of ${all.length} strips shown</span></div>
+    <h3>Inputs</h3>
+    <p class="note">Where each channel gets its signal, and which mains, buses and matrix outputs it feeds.</p>
+    <div class="strips">${inputs.map(card).join("") || `<div class="note">No input channels to show.</div>`}</div>
+    <h3>Send matrix</h3>
+    <p class="note">Rows send to columns. A filled cell means the send is on; hover for the level, click to open that setting in the tree.</p>
+    <div class="scroll"><table class="matrix"><thead>${head1}${head2}</thead><tbody>${body}</tbody></table></div>
+    <h3>Physical outputs</h3>
+    <p class="note">What feeds each output on the console, stage boxes (AES50 A/B/C) and other connections. Outputs set to OFF are not listed.</p>
+    <div class="scroll">${outRows.length ? `<table class="list"><thead><tr><th>Output</th><th>Label</th><th>Fed by</th></tr></thead><tbody>${outRows.join("")}</tbody></table>` : `<div class="note" style="padding:12px">No routed outputs found.</div>`}</div>`;
+  f.querySelector("#hideUnused").onchange = (e) => { f.dataset.hide = e.target.checked ? "1" : "0"; renderFlow(); };
+  f.querySelectorAll("td[data-p]").forEach((td) => (td.onclick = () => reveal(td.dataset.p)));
+}
+
+// ---------- demo values (made-up) ----------
+function applyDemo(st) {
+  const set = (p, v) => { const n = st.nodes.get(p); if (n && n.def) { n.def.value = String(v); st.values++; } };
+  const chans = [["Pastor", 1, 8], ["Worship Lead", 2, 8], ["BGV 1", 3, 8], ["BGV 2", 4, 8], ["Acoustic Gtr", 5, 6], ["Keys L", 6, 10], ["Keys R", 7, 10], ["Bass DI", 8, 6], ["Kick", 9, 7], ["Snare", 10, 7], ["Overhead", 11, 7], ["Handheld", 12, 4]];
+  chans.forEach(([name, n, col], idx) => {
+    const b = `/ch/${n}`;
+    set(`${b}/name`, name); set(`${b}/col`, col); set(`${b}/mute`, 0); set(`${b}/fdr`, -5 + idx % 4 * -2);
+    set(`${b}/in/conn/grp`, n <= 4 ? "LCL" : "A"); set(`${b}/in/conn/in`, n <= 4 ? n : n - 4);
+    set(`${b}/main/1/on`, 1); set(`${b}/main/1/lvl`, 0);
+    set(`${b}/send/1/on`, n <= 4 || n === 12 ? 1 : 0); set(`${b}/send/1/lvl`, -6);
+    set(`${b}/send/2/on`, n !== 1 ? 1 : 0); set(`${b}/send/2/lvl`, -10);
+    set(`${b}/send/3/on`, n === 1 || n === 12 ? 1 : 0); set(`${b}/send/3/lvl`, 0);
+    set(`${b}/send/MX1/on`, n === 1 || n === 12 ? 1 : 0);
+  });
+  set("/ch/12/mute", 1);
+  ["Pastor Lav", "Lead Vox", "BGV 1", "BGV 2"].forEach((nm, i) => set(`/io/in/LCL/${i + 1}/name`, nm));
+  ["Acoustic", "Keys L", "Keys R", "Bass", "Kick", "Snare", "OH", "HH Mic"].forEach((nm, i) => set(`/io/in/A/${i + 1}/name`, nm));
+  for (let i = 13; i <= 40; i++) { set(`/ch/${i}/in/conn/grp`, "OFF"); set(`/ch/${i}/in/conn/in`, 1); }
+  set("/main/1/name", "Sanctuary"); set("/bus/1/name", "Wedge Front"); set("/bus/2/name", "Band IEM"); set("/bus/3/name", "Stream"); set("/mtx/1/name", "Lobby");
+  set("/bus/3/main/1/on", 0); set("/bus/1/main/1/on", 0);
+  const outs = [["LCL", 1, "MAIN", 1], ["LCL", 2, "MAIN", 1], ["LCL", 3, "BUS", 1], ["LCL", 4, "BUS", 3], ["LCL", 5, "MTX", 1], ["A", 1, "BUS", 2], ["A", 2, "BUS", 2]];
+  for (const g of st.nodes.get("/io/out")?.children || []) for (const o of g.children) set(`/io/out/${g.name}/${o.name}/grp`, "OFF");
+  outs.forEach(([g, n, sg, sn]) => { set(`/io/out/${g}/${n}/grp`, sg); set(`/io/out/${g}/${n}/in`, sn); });
+  st.hasValues = true;
+  st.label = "Demo values on the bundled map";
+  return st;
+}
+
+// ---------- wiring ----------
+function switchView(id) {
+  document.querySelectorAll("nav button").forEach((b) => b.classList.toggle("active", b.dataset.view === id));
+  $("#treeView").hidden = id !== "treeView";
+  $("#flowView").hidden = id !== "flowView";
+}
+document.querySelectorAll("nav button").forEach((b) => (b.onclick = () => switchView(b.dataset.view)));
+
+const sampleLabel = "Bundled map (Wing Compact, firmware 3.0.5)";
+function loadSample(demo) {
+  if (!window.WING_SAMPLE_JSONL) {
+    $("#source").textContent = "No bundled map found. Open a map file to begin.";
+    return;
+  }
+  const st = parse(window.WING_SAMPLE_JSONL, sampleLabel);
+  if (demo) {
+    load(applyDemo(st), { banner: "Demo: these channel names, sources and sends are made up to show how the signal-flow view works. They are not from a real console." });
+    switchView("flowView");
+  } else load(st);
+}
+$("#useSample").onclick = () => loadSample(false);
+$("#useDemo").onclick = () => loadSample(true);
+
+async function openFile(file) {
+  $("#source").textContent = `Reading ${file.name}…`;
+  const st = parse(await file.text(), file.name);
+  if (!st.total) { $("#source").textContent = `${file.name} doesn't look like a wingmap/propmap file (no settings found).`; return; }
+  load(st);
+}
+$("#file").onchange = (e) => e.target.files[0] && openFile(e.target.files[0]);
+window.addEventListener("dragover", (e) => e.preventDefault());
+window.addEventListener("drop", (e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) openFile(f); });
+
+loadSample(false);
+</script>
+</body>
+</html>

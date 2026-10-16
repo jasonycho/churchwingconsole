@@ -1,0 +1,1682 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wing Dashboard</title>
+<style>
+:root {
+  --bg: #f5f6f8; --panel: #ffffff; --ink: #1c2026; --muted: #646b76; --faint: #a3a9b3; --line: #e0e3e8; --soft: #f0f2f5;
+  --accent: #2f6fdb; --accent-ink: #ffffff; --accent-soft: #e3ecfb;
+  --bad: #c0362c; --bad-soft: #fbe5e2; --amber: #a35a00; --amber-soft: #fdf0d9; --ok: #23824f;
+  --l4: #2e6fbf; --l3: #7fa8dc; --l2: #c5d7ee; --l1: #eef3fa; --l4-ink: #ffffff; --l-ink: #1c2026;
+  --topo-in: #fff6d6; --topo-proc: #e8f0fe; --topo-bus: #eaf6ec; --topo-out: #efe9fb; --topo-ctl: #f3f3f3;
+  --mono: ui-monospace, "SF Mono", Menlo, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #14171c; --panel: #1c2027; --ink: #e4e7ec; --muted: #9aa2ae; --faint: #6b7380; --line: #2e343d; --soft: #242932;
+    --accent: #6b9bf0; --accent-ink: #0d1420; --accent-soft: #233350;
+    --bad: #f07a6e; --bad-soft: #3d201c; --amber: #f0b45a; --amber-soft: #3a2c14; --ok: #5fc48c;
+    --l4: #3f7fd6; --l3: #2f5a94; --l2: #263f62; --l1: #1f2b3b; --l4-ink: #ffffff; --l-ink: #e4e7ec;
+    --topo-in: #3a3420; --topo-proc: #1f2d47; --topo-bus: #1e3526; --topo-out: #2c2443; --topo-ctl: #2a2e35;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #14171c; --panel: #1c2027; --ink: #e4e7ec; --muted: #9aa2ae; --faint: #6b7380; --line: #2e343d; --soft: #242932;
+  --accent: #6b9bf0; --accent-ink: #0d1420; --accent-soft: #233350;
+  --bad: #f07a6e; --bad-soft: #3d201c; --amber: #f0b45a; --amber-soft: #3a2c14; --ok: #5fc48c;
+  --l4: #3f7fd6; --l3: #2f5a94; --l2: #263f62; --l1: #1f2b3b; --l4-ink: #ffffff; --l-ink: #e4e7ec;
+  --topo-in: #3a3420; --topo-proc: #1f2d47; --topo-bus: #1e3526; --topo-out: #2c2443; --topo-ctl: #2a2e35;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+a { color: var(--accent); }
+.muted { color: var(--muted); font-weight: 400; }
+.faint { color: var(--faint); }
+.mono { font-family: var(--mono); font-size: 12px; }
+.sub { color: var(--muted); font-size: 12px; }
+.pad { padding: 8px 12px; }
+.bad { color: var(--bad); }
+[hidden] { display: none !important; }
+
+/* header */
+header.top { position: sticky; top: 0; z-index: 20; background: var(--panel); border-bottom: 1px solid var(--line); }
+.bar1 { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; padding: 10px 16px; }
+.bar1 h1 { font-size: 16px; margin: 0; white-space: nowrap; }
+.bar1 h1 a { color: inherit; text-decoration: none; }
+#mapInfo { color: var(--muted); font-size: 12px; flex: 1 1 200px; min-width: 0; }
+.actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+select, .btn { font: inherit; font-size: 13px; padding: 6px 11px; border-radius: 7px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+select { max-width: 360px; }
+.btn:hover { background: var(--soft); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.btn.primary:hover { filter: brightness(1.08); }
+.btn.ghost { border-color: transparent; }
+#flownav { display: flex; align-items: center; gap: 2px; padding: 0 12px; overflow-x: auto; scrollbar-width: thin; }
+#flownav a { padding: 9px 9px; color: var(--muted); text-decoration: none; white-space: nowrap; border-bottom: 2px solid transparent; font-size: 13px; }
+#flownav a:hover { color: var(--ink); }
+#flownav a.active { color: var(--ink); border-bottom-color: var(--accent); font-weight: 600; }
+#flownav .arrow { color: var(--faint); font-size: 12px; }
+#flownav .navsep { width: 1px; height: 18px; background: var(--line); margin: 0 8px; flex: none; }
+#banner { padding: 8px 16px; background: var(--accent-soft); font-size: 13px; border-bottom: 1px solid var(--line); }
+#banner.bad { background: var(--bad-soft); color: var(--bad); }
+#banner .x { float: right; border: 0; background: none; color: inherit; font-size: 18px; line-height: 1; cursor: pointer; }
+code { font-family: var(--mono); font-size: 12px; background: var(--soft); padding: 1px 5px; border-radius: 4px; }
+
+/* layout */
+main { max-width: 1500px; margin: 0 auto; padding: 18px 16px 60px; }
+.vhead h2 { margin: 4px 0 4px; font-size: 22px; }
+.lead { color: var(--muted); margin: 0 0 14px; max-width: 900px; }
+h3.sect { margin: 26px 0 10px; font-size: 16px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; margin-bottom: 14px; }
+.card > h3 { margin: 0 0 10px; font-size: 15px; }
+.cols2 { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 14px; }
+.toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; margin: 4px 0 12px; font-size: 13px; }
+.vfoot { display: flex; flex-wrap: wrap; gap: 8px; justify-content: space-between; margin-top: 28px; padding-top: 14px; border-top: 1px solid var(--line); }
+.vfoot .ghost { margin: 0 auto; }
+.tscroll { overflow-x: auto; }
+
+/* chips & badges */
+.chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.schip { font: inherit; font-size: 12px; display: inline-flex; align-items: baseline; gap: 5px; padding: 2px 8px 2px 6px; border-radius: 6px; border: 1px solid var(--line); border-left: 4px solid var(--c, var(--line)); background: var(--panel); color: var(--ink); cursor: pointer; white-space: nowrap; }
+.schip:hover { background: var(--soft); }
+.schip small { color: var(--muted); font-size: 10px; }
+.schip.muted b { text-decoration: line-through; text-decoration-color: var(--bad); }
+.schip.muted { border-color: var(--bad); border-left-color: var(--c, var(--bad)); }
+.schip.fxc { border-left-color: var(--accent); }
+.badge { display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: .03em; padding: 1px 6px; border-radius: 4px; background: var(--soft); color: var(--muted); vertical-align: middle; }
+.badge.bad { background: var(--bad-soft); color: var(--bad); }
+.badge.amber { background: var(--amber-soft); color: var(--amber); }
+.tag { display: inline-block; font-size: 11px; padding: 1px 6px; border-radius: 4px; background: var(--soft); color: var(--ink); white-space: nowrap; margin: 1px 0; }
+.tag.bad { background: var(--bad-soft); color: var(--bad); }
+.alert { background: var(--bad-soft); color: var(--bad); font-weight: 600; font-size: 12px; padding: 6px 10px; border-radius: 6px; margin: 6px 0; }
+.cbar { display: inline-block; width: 4px; height: 14px; border-radius: 2px; margin-right: 7px; vertical-align: -2px; }
+
+/* tables */
+table.list { border-collapse: collapse; width: 100%; font-size: 13px; }
+table.list th, table.list td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+table.list th { color: var(--muted); font-weight: 500; font-size: 12px; }
+table.list.small td { padding: 4px 8px; }
+table.list tr.click { cursor: pointer; }
+table.list tr.click:hover td { background: var(--soft); }
+td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+table.kv { border-collapse: collapse; font-size: 13px; }
+table.kv td { padding: 4px 14px 4px 0; vertical-align: top; border-bottom: 1px solid var(--line); }
+table.kv td:first-child { color: var(--muted); white-space: nowrap; }
+table.kv.small { font-size: 12px; width: 100%; }
+details.grp > summary { cursor: pointer; font-size: 14px; padding: 2px 0; }
+details.grp[open] > summary { margin-bottom: 8px; }
+
+/* topology */
+.topo-wrap { padding: 8px; }
+.topo-scroll { overflow-x: auto; }
+svg.topo { display: block; width: 100%; min-width: 820px; height: auto; font-family: inherit; }
+.tnode { cursor: pointer; outline: none; }
+.tnode rect { fill: var(--topo-proc); stroke: var(--line); stroke-width: 1.2; transition: stroke .15s; }
+.t-sources rect, .t-inputs rect { fill: var(--topo-in); }
+.t-monitors rect, .t-fxbus rect, .t-fxrack rect { fill: var(--topo-bus); }
+.t-mains rect, .t-matrix rect, .t-outputs rect { fill: var(--topo-out); }
+.t-control rect { fill: var(--topo-ctl); stroke-dasharray: 5 3; }
+.tnode:hover rect, .tnode:focus rect { stroke: var(--accent); stroke-width: 2; }
+.tnode.sel rect { stroke: var(--accent); stroke-width: 3; }
+.tnode .tt { font-weight: 700; font-size: 15px; fill: var(--ink); }
+.tnode .t1 { font-size: 13px; fill: var(--ink); }
+.tnode .t2 { font-size: 12px; fill: var(--muted); }
+.tnode .topen { font-size: 16px; fill: var(--accent); text-anchor: middle; }
+.tnode .topen:hover { font-weight: 700; }
+.twarn circle { fill: var(--bad); }
+.twarn text { fill: #fff; font-size: 12px; font-weight: 700; text-anchor: middle; }
+.edge { fill: none; stroke: var(--muted); stroke-width: 1.8; }
+.edge.ctl { stroke-dasharray: 6 4; stroke-width: 1.4; }
+.edge.return { stroke-dasharray: 2 4; }
+.ahead { fill: var(--muted); }
+.elbl { font-size: 12px; fill: var(--muted); font-style: italic; }
+.colhd { font-size: 11px; fill: var(--faint); letter-spacing: .2em; font-weight: 700; }
+.tprev { border-top: 1px solid var(--line); margin-top: 6px; padding: 12px 8px 4px; }
+.tprev.empty { color: var(--muted); font-size: 13px; }
+.tprev-h { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; margin-bottom: 10px; }
+.tprev-h h3 { margin: 0; font-size: 16px; }
+.tprev-h .btn { margin-left: auto; }
+ul.findings { list-style: none; padding: 0; margin: 0; }
+ul.findings li { border-left: 3px solid var(--faint); margin-bottom: 6px; }
+ul.findings li.warn { border-left-color: var(--bad); }
+.flink { font: inherit; text-align: left; width: 100%; border: 0; background: none; color: var(--ink); padding: 5px 10px; cursor: pointer; border-radius: 0 6px 6px 0; }
+.flink:hover { background: var(--soft); }
+.vcards { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
+.vcard { display: flex; flex-direction: column; gap: 3px; padding: 12px 14px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; text-decoration: none; color: var(--ink); }
+.vcard:hover { border-color: var(--accent); }
+.vcard span { color: var(--muted); font-size: 12px; }
+
+/* patch */
+table.patch td:first-child { white-space: nowrap; }
+
+/* processing */
+.segs { gap: 0; }
+.seg { font: inherit; font-size: 13px; padding: 6px 12px; border: 1px solid var(--line); background: var(--panel); color: var(--muted); cursor: pointer; margin-right: -1px; }
+.seg:first-child { border-radius: 7px 0 0 7px; }
+.seg:last-child { border-radius: 0 7px 7px 0; }
+.seg.on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.pgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px; }
+.pcard { font: inherit; text-align: left; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-top: 4px solid var(--c); border-radius: 10px; padding: 10px 12px; cursor: pointer; display: flex; flex-direction: column; gap: 6px; }
+.pcard:hover { border-color: var(--accent); border-top-color: var(--c); }
+.pc-h { display: flex; align-items: baseline; gap: 6px; }
+.pc-h small { color: var(--muted); font-size: 11px; }
+.pc-eq { margin-left: auto; font-size: 11px; color: var(--muted); }
+svg.eq { display: block; height: auto; aspect-ratio: 300 / 80; background: var(--soft); border-radius: 6px; }
+section svg.eq { aspect-ratio: 520 / 160; margin: 4px 0 6px; }
+.eqgrid { stroke: var(--line); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.eqgrid.faint { stroke-dasharray: 2 3; }
+.eqgrid.zero { stroke: var(--faint); }
+.eqline { fill: none; stroke: var(--accent); stroke-width: 2; vector-effect: non-scaling-stroke; }
+.eqline.bypassed { stroke: var(--faint); stroke-dasharray: 4 3; }
+svg.eq.off .eqline:not(.bypassed) { stroke: var(--muted); }
+.eqdot { fill: var(--panel); stroke: var(--accent); stroke-width: 2; vector-effect: non-scaling-stroke; }
+.eqlbl { font-size: 10px; fill: var(--muted); }
+.pchips { display: flex; flex-wrap: wrap; gap: 4px; }
+.pchip { font-size: 11px; padding: 1px 6px; border-radius: 4px; background: var(--soft); color: var(--muted); }
+.pchip.on { background: var(--accent-soft); color: var(--ink); }
+.pchip.ins { background: var(--amber-soft); color: var(--amber); }
+
+/* bus / main panels */
+.legend { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; font-size: 12px; }
+.lv.l4 { background: var(--l4); color: var(--l4-ink); }
+.lv.l3 { background: var(--l3); color: var(--l-ink); }
+.lv.l2 { background: var(--l2); color: var(--l-ink); }
+.lv.l1 { background: var(--l1); color: var(--l-ink); }
+.lv.l0 { color: var(--faint); }
+.legend .lv { padding: 2px 7px; border-radius: 4px; }
+.bgrid, .mgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; align-items: start; }
+.bpanel, .mpanel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.mpanel.hot { border-color: var(--bad); }
+.bp-h { padding: 9px 12px; border-bottom: 1px solid var(--line); border-left: 5px solid var(--c); cursor: pointer; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; }
+.bp-h b { font-size: 16px; }
+.bp-h small { color: var(--muted); font-size: 11px; }
+.bp-h .badge { margin-left: auto; }
+.bp-h:hover { background: var(--soft); }
+table.bp-t { width: 100%; border-collapse: collapse; font-size: 13px; }
+table.bp-t td { padding: 3px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+table.bp-t tr.click { cursor: pointer; }
+table.bp-t tr.click:hover td { background: var(--soft); }
+table.bp-t tr.muted td:first-child { color: var(--muted); }
+table.bp-t td.bar { width: 30%; padding-left: 0; padding-right: 0; }
+.lvbar { display: block; height: 8px; border-radius: 4px; }
+.lvbar.l0 { background: var(--line); }
+table.bp-t td.lv { width: 1%; font-variant-numeric: tabular-nums; font-weight: 600; text-align: right; }
+td.mode { color: var(--faint); font-size: 10px; width: 1%; }
+.bp-row { padding: 7px 12px; font-size: 12px; display: flex; flex-wrap: wrap; gap: 4px; align-items: center; border-bottom: 1px solid var(--line); }
+.bp-row:last-child { border-bottom: 0; }
+.bp-note { padding: 5px 12px; font-size: 11px; color: var(--faint); border-bottom: 1px solid var(--line); }
+.mgrp { padding: 7px 12px; border-bottom: 1px solid var(--line); }
+.mgrp > .muted { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; display: block; margin-bottom: 4px; }
+.mpanel .alert { margin: 8px 12px; }
+.mpanel .sub { padding: 4px 12px 0; }
+.fxgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; align-items: start; }
+.fxcard { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; cursor: pointer; overflow: hidden; }
+.fxcard:hover { border-color: var(--accent); }
+.fxcard.empty { opacity: .55; }
+.fx-h { padding: 8px 12px; border-bottom: 1px solid var(--line); background: var(--soft); }
+.fxcard table.kv, .fxcard svg, .fxcard > .sub { margin: 6px 12px 8px; width: calc(100% - 24px); }
+svg.geq { display: block; height: 70px; background: var(--soft); border-radius: 6px; }
+svg.geq .up { fill: var(--accent); }
+svg.geq .dn { fill: var(--l3); }
+
+/* send grid */
+.gridwrap { padding: 0; overflow: auto; max-height: calc(100vh - 200px); }
+table.sgrid { border-collapse: separate; border-spacing: 0; font-size: 11px; }
+table.sgrid th, table.sgrid td { border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 3px 5px; text-align: center; white-space: nowrap; }
+table.sgrid thead th { position: sticky; top: 0; background: var(--panel); z-index: 2; cursor: pointer; vertical-align: bottom; font-weight: 600; }
+table.sgrid thead th.main { color: var(--accent); }
+table.sgrid .vh { writing-mode: vertical-rl; transform: rotate(180deg); max-height: 120px; overflow: hidden; text-overflow: ellipsis; display: inline-block; }
+table.sgrid tbody th { position: sticky; left: 0; background: var(--panel); text-align: left; z-index: 1; cursor: pointer; font-weight: 600; font-size: 12px; }
+table.sgrid tbody th small { color: var(--muted); font-weight: 400; }
+table.sgrid thead th.corner { left: 0; z-index: 3; }
+table.sgrid td { min-width: 40px; font-variant-numeric: tabular-nums; }
+table.sgrid td.mainon { color: var(--accent); }
+
+/* drawer */
+#drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(600px, 100vw); background: var(--panel); border-left: 1px solid var(--line); box-shadow: -10px 0 30px rgba(0,0,0,.12); z-index: 40; display: flex; flex-direction: column; }
+#drawer .dbar { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; border-bottom: 1px solid var(--line); }
+#drawerBody { overflow: auto; padding: 14px 18px 40px; flex: 1; }
+.dr-h { border-left: 6px solid var(--c, var(--line)); padding-left: 12px; margin-bottom: 12px; }
+.dr-h h2 { margin: 0; font-size: 22px; }
+#drawerBody section { margin: 16px 0; }
+#drawerBody h4 { margin: 0 0 6px; font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+#drawerBody h4 .muted { text-transform: none; letter-spacing: 0; }
+.dr-links { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 20px; }
+.flash { animation: flash 1.6s ease-out; }
+@keyframes flash { 0%, 30% { box-shadow: 0 0 0 3px var(--accent); } 100% { box-shadow: 0 0 0 0 transparent; } }
+
+/* settings tree */
+.treeview { display: flex; padding: 0; height: calc(100vh - 230px); min-height: 420px; overflow: hidden; }
+.treeview .side { width: min(520px, 55%); display: flex; flex-direction: column; border-right: 1px solid var(--line); }
+.searchbar { padding: 10px; border-bottom: 1px solid var(--line); }
+.searchbar input { width: 100%; font: inherit; padding: 7px 10px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); }
+#searchInfo { color: var(--muted); font-size: 12px; margin-top: 6px; min-height: 16px; }
+#tree, #results { flex: 1; overflow: auto; padding: 6px 0; font-size: 13px; }
+.row { display: flex; align-items: center; gap: 6px; padding: 2px 10px 2px 0; cursor: pointer; white-space: nowrap; }
+.row:hover { background: var(--soft); }
+.row.sel { background: var(--accent-soft); }
+.caret { width: 16px; flex: none; text-align: center; color: var(--muted); font-size: 10px; }
+.nm { font-family: var(--mono); }
+.ln { color: var(--muted); overflow: hidden; text-overflow: ellipsis; }
+.cnt { margin-left: auto; color: var(--muted); font-size: 11px; padding-left: 8px; }
+.val { margin-left: auto; font-family: var(--mono); font-size: 12px; color: var(--accent); padding-left: 8px; overflow: hidden; text-overflow: ellipsis; max-width: 45%; }
+.res { padding: 4px 12px; cursor: pointer; }
+.res:hover { background: var(--soft); }
+#detail { flex: 1; overflow: auto; padding: 16px 20px; }
+.opt { font-size: 12px; padding: 2px 8px; border-radius: 10px; background: var(--soft); }
+.opt.cur { background: var(--accent); color: var(--accent-ink); }
+
+/* empty state */
+#empty { max-width: 720px; margin: 40px auto; }
+
+@media (max-width: 900px) {
+  .cols2 { grid-template-columns: minmax(0, 1fr); }
+  .treeview { flex-direction: column; height: auto; }
+  .treeview .side { width: 100%; height: 50vh; border-right: 0; border-bottom: 1px solid var(--line); }
+}
+@media (max-width: 600px) {
+  main { padding: 12px 16px 50px; }
+  .bgrid, .mgrid, .pgrid, .fxgrid { grid-template-columns: minmax(0, 1fr); }
+  select { max-width: 100%; }
+}
+
+/* printing */
+#printAll { display: none; }
+@media print {
+  header.top, #drawer, .vfoot, .toolbar input, #banner { display: none !important; }
+  body { background: #fff; }
+  body.printing-all main { display: none; }
+  body.printing-all #printAll { display: block; }
+  .ppage { break-after: page; }
+  .print-title { font-size: 11px; color: #666; margin-bottom: 8px; }
+  .card, .bpanel, .mpanel, .pcard, .fxcard { break-inside: avoid; }
+  .gridwrap { max-height: none; overflow: visible; }
+  svg.topo { min-width: 0; }
+}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="bar1">
+    <h1><a href="#/home">Wing Dashboard</a></h1>
+    <div id="mapInfo">Loading…</div>
+    <div class="actions">
+      <select id="srcSel" aria-label="Map to show" hidden></select>
+      <label class="btn" title="Open an archived map (Libwing/maps/archive/*.jsonl), any wingmap .jsonl, or a .snap">Open archived map…<input id="openFile" type="file" accept=".jsonl,.json,.txt,.snap" hidden></label>
+      <label class="btn" title="Build a map from a WING Edit snapshot">Map a .snap…<input id="openSnap" type="file" accept=".snap,.json" hidden></label>
+      <button class="btn primary" id="saveSnap" hidden>Save to maps/snapmap</button>
+      <button class="btn" id="shareBtn" title="Download this map as one self-contained page to send to others">Share this map</button>
+      <button class="btn" id="printBtn" title="Print or save every page as a PDF">Print all</button>
+    </div>
+  </div>
+  <nav id="flownav" aria-label="Pages"></nav>
+  <div id="banner" hidden></div>
+</header>
+
+<main>
+  <div id="empty" class="card" hidden>
+    <h2>No map loaded yet</h2>
+    <p>This page loads <code>maps/church-wing-map.js</code> automatically. That file is written by <code>wingmap</code> each time you map the console, next to <code>church-wing-map.jsonl</code>.</p>
+    <p>You can also click <b>Open archived map…</b> to pick a <code>.jsonl</code> from <code>maps/archive</code>, or <b>Map a .snap…</b> to build a map from a WING Edit snapshot.</p>
+  </div>
+  <div id="app" hidden><div id="view"></div></div>
+  <div id="printAll"></div>
+</main>
+
+<aside id="drawer" hidden aria-label="Details">
+  <div class="dbar"><span class="muted">Details</span><button class="btn" id="drawerClose">Close ✕</button></div>
+  <div id="drawerBody"></div>
+</aside>
+
+<!-- Map data. A missing file is fine: the page just won't offer that map. -->
+<script src="../maps/church-wing-map.js"></script>
+<script src="../maps/snapmap/snap-map.js"></script>
+<script id="app-code">
+"use strict";
+// Wing console dashboard. Read-only: this page only reads map files (wingmap
+// .jsonl/.js output, or a WING Edit .snap). It never talks to the mixer.
+//
+// Data flow: map lines -> buildState() (settings tree) -> buildModel() (strips,
+// sends, routing, FX, findings) -> view functions that return HTML strings.
+// Views are pure (no DOM access) so they can be tested outside a browser
+// (this script can be run on its own, e.g. with macOS's jsc).
+
+// Buses are sorted into monitor / fx / utility automatically (see busRole()).
+// Force a bus into a group here if the guess is wrong, e.g. { 3: "monitor" }.
+const BUS_ROLE_OVERRIDE = {};
+
+// ---------------------------------------------------------------- helpers
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const MINUS = "−";
+function fmtDb(n, unit = true) {
+  if (n === undefined || n === null || isNaN(n)) return "";
+  if (n <= -144) return `${MINUS}∞${unit ? " dB" : ""}`;
+  const sign = n >= 0.05 ? "+" : n <= -0.05 ? MINUS : "";
+  return `${sign}${Math.abs(n).toFixed(1)}${unit ? " dB" : ""}`;
+}
+function fmtHz(f) {
+  if (f === undefined || isNaN(f)) return "";
+  if (f >= 1000) return `${+(f / 1000).toFixed(f >= 10000 ? 1 : 2)} kHz`;
+  return `${Math.round(f)} Hz`;
+}
+const plural = (n, one, many = one + "s") => `${n} ${n === 1 ? one : many}`;
+const uniq = (a) => [...new Set(a)];
+
+// ---------------------------------------------------------------- settings tree
+let S = null; // current state: { nodes, root, values, total, bad, meta }
+let M = null; // derived model for the current state
+
+function buildState(lines, meta) {
+  const nodes = new Map();
+  const root = { path: "", name: "/", children: [], def: null };
+  nodes.set("", root);
+  let bad = 0, values = 0;
+  const add = (d) => {
+    if (!d || typeof d.fullname !== "string") { bad++; return; }
+    let n = nodes.get(d.fullname);
+    if (!n) { n = { path: d.fullname, name: d.fullname.slice(d.fullname.lastIndexOf("/") + 1), children: [] }; nodes.set(d.fullname, n); }
+    n.def = d;
+    if ("value" in d) values++;
+  };
+  if (typeof lines === "string") {
+    for (const line of lines.split("\n")) {
+      const t = line.trim();
+      if (!t) continue;
+      try { add(JSON.parse(t)); } catch { bad++; }
+    }
+  } else for (const d of lines) add(d);
+  const link = (n) => {
+    if (n.linked || n === root) return;
+    n.linked = true;
+    const pp = n.path.slice(0, n.path.lastIndexOf("/"));
+    let p = nodes.get(pp);
+    if (!p) { p = { path: pp, name: pp.slice(pp.lastIndexOf("/") + 1), children: [], def: null }; nodes.set(pp, p); }
+    p.children.push(n);
+    link(p);
+  };
+  for (const n of [...nodes.values()]) link(n);
+  const count = (n) => { n.leaves = n.children.length ? n.children.reduce((a, c) => a + count(c), 0) : 1; return n.leaves; };
+  count(root);
+  return { nodes, root, values, bad, total: nodes.size - 1, hasValues: values > 0, meta: meta || {} };
+}
+
+const node = (p) => S.nodes.get(p);
+const raw = (p) => { const n = S.nodes.get(p); return n && n.def && "value" in n.def ? String(n.def.value) : undefined; };
+const num = (p) => { const v = raw(p); return v === undefined || v === "" ? undefined : Number(v); };
+const on = (p) => raw(p) === "1";
+const kidsNum = (p) => (node(p)?.children || []).filter((c) => /^\d+$/.test(c.name)).length;
+
+function enumItem(def, v) {
+  const items = def && def.items;
+  if (!items || v === undefined) return undefined;
+  let it = items.find((i) => String(i.item) === v);
+  if (!it && /^\d+$/.test(v) && items[+v]) it = items[+v];
+  return it;
+}
+function fmt(def, v) {
+  if (v === undefined) return "";
+  const it = enumItem(def, v);
+  if (it) return String(it.longitem || it.item);
+  if (def && def.type === "integer" && def.minint === 0 && def.maxint === 1) return v === "1" ? "ON" : "OFF";
+  const n = Number(v);
+  if (def && def.unit && v !== "" && !isNaN(n)) {
+    if (def.unit === "dB") return fmtDb(n);
+    if (def.unit === "Hz") return fmtHz(n);
+    if (def.unit === "ms") return `${n >= 100 ? Math.round(n) : +n.toFixed(1)} ms`;
+    if (def.unit === "%") return `${Math.round(n)} %`;
+    return `${+n.toFixed(2)} ${def.unit}`;
+  }
+  if (v !== "" && !isNaN(n) && /\./.test(v)) return String(+n.toFixed(2));
+  return v === "" ? "—" : v;
+}
+const disp = (p) => fmt(node(p)?.def, raw(p));
+const enumLong = (p) => { const v = raw(p); const it = enumItem(node(p)?.def, v); return it ? String(it.longitem || it.item) : v; };
+
+// ---------------------------------------------------------------- console model
+const KIND = {
+  ch: { tag: "CH", title: "Input channel", many: "Input channels" },
+  aux: { tag: "AUX", title: "Aux channel", many: "Aux channels" },
+  bus: { tag: "BUS", title: "Bus", many: "Buses" },
+  main: { tag: "MAIN", title: "Main", many: "Mains" },
+  mtx: { tag: "MTX", title: "Matrix", many: "Matrix outputs" },
+  dca: { tag: "DCA", title: "DCA", many: "DCAs" },
+  mgrp: { tag: "MGRP", title: "Mute group", many: "Mute groups" },
+};
+// Wing strip colours 1-18 (approximate screen colours).
+const WING_COLORS = ["#7d8ea6", "#2f6fdb", "#2346b0", "#1fb3c2", "#2a9d4b", "#7f9f23", "#e2c11f", "#e8851c", "#d7362f", "#ef6f6a", "#e051a3", "#9050d0", "#6fd0e8", "#8fd05f", "#e8d97a", "#c78a5a", "#c9ccd2", "#555b66"];
+const colorOf = (i) => WING_COLORS[(i || 1) - 1] || WING_COLORS[0];
+const PHYS = ["LCL", "AUX", "A", "B", "C", "SC", "USB", "CRD", "MOD", "PLAY", "AES"];
+const GRP_FALLBACK = { LCL: "LOCAL", AUX: "AUX", A: "AES50 A", B: "AES50 B", C: "AES50 C", SC: "STAGECONNECT", USB: "USB AUDIO", CRD: "CARD", MOD: "MODULE", PLAY: "USB PLAYER", AES: "AES/EBU", USR: "USER SIGNAL", OSC: "OSCILLATOR", BUS: "BUS", MAIN: "MAIN", MTX: "MATRIX", SEND: "FX SEND", MON: "MONITOR", REC: "RECORDER" };
+const STRIP_OF_GRP = { CH: "ch", AUX: "aux", BUS: "bus", MAIN: "main", MTX: "mtx" };
+
+const strip = (id) => M && M.strips.get(id);
+const stripKind = (id) => id.replace(/\d+$/, "");
+
+function grpLong(g, side) {
+  for (const p of [`/io/${side || "out"}/LCL/1/grp`, "/ch/1/in/conn/grp"]) {
+    const it = enumItem(node(p)?.def, g);
+    if (it && it.longitem) return String(it.longitem).replace(/ IN$/, "");
+  }
+  return GRP_FALLBACK[g] || g;
+}
+
+// What a routing point (group + number) refers to.
+function port(g, n) {
+  if (!g || g === "OFF") return null;
+  n = Number(n);
+  const r = { g, n, conn: grpLong(g), short: `${g} ${n}`, label: "", sub: "" };
+  const pairKind = { BUS: "bus", MAIN: "main", MTX: "mtx" }[g];
+  if (pairKind) {
+    // Each bus/main/matrix owns two ports (odd = left, even = right); a mono
+    // one sends the same signal on both. The console's own port table is in
+    // /io/in/$BUS, $MAIN and $MTX.
+    const i = Math.ceil(n / 2);
+    r.strip = pairKind + i;
+    r.side = raw(`/io/in/$${g}/${n}/mode`) === "M" ? "mono" : n % 2 ? "L" : "R";
+    const s = strip(r.strip);
+    r.label = `${s ? s.title : `${KIND[pairKind].tag} ${i}`} ${r.side}`;
+    r.sub = `${KIND[pairKind].tag} ${i} ${{ L: "left", R: "right", mono: "(mono)" }[r.side]}`;
+    return r;
+  }
+  if (g === "MON") {
+    const i = Math.ceil(n / 2);
+    r.label = `Monitor ${i} ${n % 2 ? "L" : "R"}`;
+    r.sub = `Monitor output ${i} (speakers/phones)`;
+    return r;
+  }
+  if (g === "USR") {
+    const b = `/io/in/USR/${n}`;
+    r.name = raw(`${b}/name`) || "";
+    const ug = raw(`${b}/user/grp`), ui = raw(`${b}/user/in`), tap = raw(`${b}/user/tap`);
+    if (STRIP_OF_GRP[ug] && ui) r.via = STRIP_OF_GRP[ug] + ui;
+    const vs = r.via && strip(r.via);
+    r.label = r.name || (vs ? vs.title : `User signal ${n}`);
+    r.sub = `User signal ${n}` + (vs ? ` = ${vs.tag} ${vs.name ? `“${vs.name}” ` : ""}${tap ? `(${tap.toLowerCase()})` : ""}` : "");
+    return r;
+  }
+  if (PHYS.includes(g)) {
+    const b = `/io/in/${g}/${n}`;
+    r.phys = true;
+    r.name = raw(`${b}/name`) || "";
+    r.vph = on(`${b}/vph`);
+    r.gain = num(`${b}/g`);
+    r.label = r.name || `${r.conn} ${n}`;
+    r.sub = `${r.conn} ${n}`;
+    return r;
+  }
+  r.label = `${r.conn} ${n}`;
+  return r;
+}
+
+function newStrip(k, i) {
+  const base = `/${k}/${i}`;
+  const name = raw(`${base}/name`) || "";
+  return {
+    id: k + i, k, i, base, tag: `${KIND[k].tag} ${i}`, name, title: name || `${KIND[k].tag} ${i}`,
+    col: num(`${base}/col`) || 1, fdr: num(`${base}/fdr`), mute: on(`${base}/mute`),
+    tags: (raw(`${base}/tags`) || "").split(/[,\s]+/).filter(Boolean),
+    sends: [], feeds: [], outs: [], dcas: [], mgrps: [], members: [], ins: [], returns: [], muteWhy: [],
+  };
+}
+
+function buildModel() {
+  const m = { strips: new Map(), list: {}, sends: [], outputs: [], outGroups: [], inputs: [], fx: [], findings: [] };
+  M = m;
+  for (const k of Object.keys(KIND)) {
+    m.list[k] = [];
+    for (let i = 1; i <= kidsNum("/" + k); i++) {
+      const s = newStrip(k, i);
+      m.strips.set(s.id, s);
+      m.list[k].push(s);
+    }
+  }
+  const all = [...m.strips.values()];
+  const audio = all.filter((s) => ["ch", "aux", "bus", "main", "mtx"].includes(s.k));
+
+  // DCA (#D1) and mute group (#M1) membership comes from strip tags.
+  for (const s of audio) for (const t of s.tags) {
+    const x = /^#([DM])(\d+)$/i.exec(t);
+    if (!x) continue;
+    const g = strip((x[1].toUpperCase() === "D" ? "dca" : "mgrp") + x[2]);
+    if (!g) continue;
+    g.members.push(s.id);
+    (g.k === "dca" ? s.dcas : s.mgrps).push(g.id);
+  }
+
+  // Sources
+  for (const s of [...m.list.ch, ...m.list.aux]) {
+    s.src = port(raw(`${s.base}/in/conn/grp`), raw(`${s.base}/in/conn/in`));
+    s.alt = port(raw(`${s.base}/in/conn/altgrp`), raw(`${s.base}/in/conn/altin`));
+    s.trim = num(`${s.base}/in/set/trim`);
+    s.inv = on(`${s.base}/in/set/inv`);
+    if (s.src && s.src.strip && strip(s.src.strip)) { strip(s.src.strip).returns.push(s.id); s.returnOf = s.src.strip; }
+  }
+
+  // Sends: strip -> main (assign), -> bus, -> matrix
+  const addSend = (e) => {
+    e.live = e.on && !(e.db <= -144);
+    m.sends.push(e);
+    strip(e.from).sends.push(e);
+    strip(e.to).feeds.push(e);
+  };
+  for (const s of [...m.list.ch, ...m.list.aux, ...m.list.bus, ...m.list.main]) {
+    if (s.k !== "main") for (const mn of m.list.main) {
+      const p = `${s.base}/main/${mn.i}`;
+      if (!node(p)) continue;
+      addSend({ from: s.id, to: mn.id, type: "main", on: on(`${p}/on`), db: num(`${p}/lvl`) ?? 0, mode: on(`${p}/pre`) ? "PRE" : "POST", path: p });
+    }
+    for (const c of node(`${s.base}/send`)?.children || []) {
+      const mx = /^MX(\d+)$/.exec(c.name);
+      const to = /^\d+$/.test(c.name) ? "bus" + c.name : mx ? "mtx" + mx[1] : null;
+      if (!to || !strip(to) || to === s.id) continue;
+      addSend({ from: s.id, to, type: stripKind(to), on: on(`${c.path}/on`), db: num(`${c.path}/lvl`), mode: raw(`${c.path}/mode`) || "", path: c.path });
+    }
+  }
+
+  // A send only carries audio if its strip does: a channel needs a source, a
+  // bus or main needs something live feeding it. Otherwise an assign left on
+  // an empty channel would count as a source.
+  const carries = new Set();
+  for (const k of ["ch", "aux", "bus", "main", "mtx"]) for (const s of m.list[k]) {
+    if (k === "ch" || k === "aux" ? s.src : s.feeds.some((e) => e.live)) carries.add(s.id);
+    if (k === "ch" || k === "aux" || k === "bus" || k === "main") for (const e of s.sends) e.live = e.live && carries.has(s.id);
+  }
+
+  // Inserts
+  for (const s of audio) for (const slot of ["preins", "postins"]) {
+    const fx = raw(`${s.base}/${slot}/ins`);
+    if (!fx || !/^FX\d+$/.test(fx)) continue;
+    s.ins.push({ slot, fx, on: on(`${s.base}/${slot}/on`) });
+  }
+
+  // FX rack
+  for (let i = 1; i <= kidsNum("/fx"); i++) {
+    const b = `/fx/${i}`;
+    const mdl = raw(`${b}/mdl`) || "NONE";
+    const usedBy = [];
+    for (const s of audio) for (const x of s.ins) if (x.fx === `FX${i}`) usedBy.push({ strip: s.id, slot: x.slot, on: x.on });
+    const params = (node(b)?.children || []).filter((c) => !c.name.startsWith("$") && c.name !== "mdl" && !c.children.length && c.def && "value" in c.def);
+    m.fx.push({ id: `fx${i}`, i, base: b, mdl, model: enumLong(`${b}/mdl`) || mdl, none: mdl === "NONE", usedBy, params });
+  }
+
+  // Physical outputs and other output connections
+  for (const g of node("/io/out")?.children || []) {
+    const grp = { g: g.name, conn: grpLong(g.name), ports: [] };
+    for (const o of g.children) {
+      if (!/^\d+$/.test(o.name)) continue;
+      const out = { g: g.name, conn: grp.conn, n: +o.name, path: o.path, name: raw(`${o.path}/name`) || "", src: port(raw(`${o.path}/grp`), raw(`${o.path}/in`)) };
+      grp.ports.push(out);
+      if (!out.src) continue;
+      m.outputs.push(out);
+      const s = strip(out.src.strip) || strip(out.src.via);
+      if (s) s.outs.push(out);
+    }
+    m.outGroups.push(grp);
+  }
+
+  // Physical inputs: named, or used by a channel or an output
+  for (const g of node("/io/in")?.children || []) {
+    if (!PHYS.includes(g.name)) continue;
+    const grp = { g: g.name, conn: grpLong(g.name, "in"), ports: [] };
+    for (const p of g.children) {
+      if (!/^\d+$/.test(p.name)) continue;
+      const n = +p.name;
+      const usedBy = [...m.list.ch, ...m.list.aux].filter((s) => s.src && s.src.g === g.name && s.src.n === n).map((s) => s.id);
+      const outs = m.outputs.filter((o) => o.src.g === g.name && o.src.n === n);
+      grp.ports.push({ g: g.name, n, path: p.path, name: raw(`${p.path}/name`) || "", vph: on(`${p.path}/vph`), gain: num(`${p.path}/g`), mute: on(`${p.path}/mute`), usedBy, outs });
+    }
+    m.inputs.push(grp);
+  }
+
+  // Effective mute: own mute button, mute groups, muted DCAs, fader at -inf
+  const groupsOn = raw("/cfg/dcamgrp") !== "0";
+  for (const s of audio) {
+    if (s.mute) s.muteWhy.push("its own mute is on");
+    if (groupsOn) {
+      for (const g of s.mgrps) if (strip(g).mute) s.muteWhy.push(`mute group ${strip(g).title} is on`);
+      for (const g of s.dcas) if (strip(g).mute) s.muteWhy.push(`DCA ${strip(g).title} is muted`);
+    }
+    s.silenced = s.muteWhy.length > 0;
+    s.faderDown = s.fdr !== undefined && s.fdr <= -144;
+  }
+
+  for (const b of m.list.bus) b.role = busRole(b);
+  m.findings = findings();
+  return m;
+}
+
+function busRole(b) {
+  if (BUS_ROLE_OVERRIDE[b.i]) return BUS_ROLE_OVERRIDE[b.i];
+  if (b.ins.some((x) => x.on) || b.returns.length) return "fx";
+  const live = b.feeds.filter((e) => e.live && e.type === "bus").length;
+  return b.outs.length && live >= 5 ? "monitor" : "utility";
+}
+
+const liveFeeds = (s) => s.feeds.filter((e) => e.live);
+const liveSends = (s) => s.sends.filter((e) => e.live);
+const used = (s) => !!(s.name || (s.src && s.src.g) || liveSends(s).length || liveFeeds(s).length || s.outs.length);
+
+function findings() {
+  const out = [];
+  const L = M.list;
+  for (const g of L.mgrp) {
+    if (!g.mute) continue;
+    if (g.members.length) out.push({ sev: "warn", strip: g.id, text: `Mute group <b>${esc(g.title)}</b> is ON, which silences ${g.members.map((x) => esc(strip(x).title)).join(", ")}.` });
+    else out.push({ sev: "info", strip: g.id, text: `Mute group <b>${esc(g.title)}</b> is ON but no strips are tagged into it, so it does nothing right now.` });
+  }
+  for (const s of [...L.main, ...L.mtx]) {
+    if (s.faderDown && (liveFeeds(s).length || s.outs.length))
+      out.push({ sev: "warn", strip: s.id, text: `<b>${esc(s.title)}</b> (${s.tag}) fader is at ${MINUS}∞: ${plural(liveFeeds(s).length, "source")} assigned${s.outs.length ? ` and ${plural(s.outs.length, "output")} patched` : ""}, but nothing comes out.` });
+    else if (s.silenced && s.outs.length)
+      out.push({ sev: "warn", strip: s.id, text: `<b>${esc(s.title)}</b> (${s.tag}) is muted (${esc(s.muteWhy.join("; "))}) but feeds ${plural(s.outs.length, "output")}.` });
+  }
+  // A stereo mix patched to an output as one side only: anything panned the
+  // other way is quieter or missing on that output.
+  for (const s of [...L.bus, ...L.main, ...L.mtx]) {
+    const byConn = new Map();
+    for (const o of s.outs) if (o.src.strip === s.id) byConn.set(o.g, [...(byConn.get(o.g) || []), o]);
+    for (const outs of byConn.values()) {
+      const sides = uniq(outs.map((o) => o.src.side));
+      if (sides.length !== 1 || sides[0] === "mono") continue;
+      const side = sides[0];
+      const panOf = (e) => { const f = strip(e.from); return e.type === "main" || on(`${e.path}/plink`) ? num(`${f.base}/pan`) : num(`${e.path}/pan`); };
+      const away = liveFeeds(s).map((e) => ({ e, p: panOf(e) || 0 })).filter(({ p }) => (side === "R" ? p <= -20 : p >= 20)).sort((a, b) => Math.abs(b.p) - Math.abs(a.p));
+      if (!away.length) continue;
+      const both = s.outs.filter((o) => o.src.strip === s.id && !outs.includes(o));
+      out.push({ sev: "warn", strip: s.id, text: `<b>${esc(s.title)}</b> (${s.tag}) is stereo but ${outs.map((o) => esc(outLabel(o))).join(", ")} only carr${outs.length > 1 ? "y" : "ies"} its <b>${side === "R" ? "right" : "left"}</b> side. ${plural(away.length, "source is", "sources are")} panned ${side === "R" ? "left" : "right"} and will be quieter there: ${away.map(({ e, p }) => `${esc(strip(e.from).title)} (${side === "R" ? "L" : "R"}${Math.round(Math.abs(p))})`).join(", ")}.${both.length ? ` (Both sides do reach ${uniq(both.map((o) => esc(o.conn))).join(", ")}.)` : ""}` });
+    }
+  }
+  for (const s of [...L.ch, ...L.aux]) {
+    const mon = liveSends(s).filter((e) => e.type === "bus" && strip(e.to).role === "monitor");
+    if (s.silenced && mon.length >= 3)
+      out.push({ sev: "info", strip: s.id, text: `<b>${esc(s.title)}</b> (${s.tag}) is muted (${esc(s.muteWhy.join("; "))}) but is sent to ${plural(mon.length, "monitor mix", "monitor mixes")}${mon.some((e) => e.db > -6) ? " at a high level" : ""}. Unmuting it puts it straight into those ears.` });
+    if (s.src && !s.name && s.k === "ch")
+      out.push({ sev: "info", strip: s.id, text: `${s.tag} is patched to ${esc(s.src.sub)}${s.src.name ? ` “${esc(s.src.name)}”` : ""} but has no name.` });
+  }
+  const bySrc = new Map();
+  for (const s of [...L.ch, ...L.aux]) if (s.src && s.src.phys) { const k = `${s.src.g}:${s.src.n}`; bySrc.set(k, [...(bySrc.get(k) || []), s]); }
+  for (const list of bySrc.values()) if (list.length > 1)
+    out.push({ sev: "info", strip: list[0].id, text: `${list.map((s) => `<b>${esc(s.title)}</b> (${s.tag})`).join(" and ")} share the same source, ${esc(list[0].src.sub)}${list[0].src.name ? ` “${esc(list[0].src.name)}”` : ""}.` });
+  for (const f of M.fx) for (const u of f.usedBy) if (u.on && f.none)
+    out.push({ sev: "warn", strip: u.strip, text: `${esc(strip(u.strip).title)} has an insert switched on to FX${f.i}, but that FX slot is empty.` });
+  return out.sort((a, b) => (a.sev === b.sev ? 0 : a.sev === "warn" ? -1 : 1));
+}
+
+// ---------------------------------------------------------------- EQ curve (approximate)
+const FS = 48000;
+function biquadDb(c, f) {
+  const w = 2 * Math.PI * f / FS, cw = Math.cos(w), sw = Math.sin(w), c2 = Math.cos(2 * w), s2 = Math.sin(2 * w);
+  const nr = c.b0 + c.b1 * cw + c.b2 * c2, ni = -(c.b1 * sw + c.b2 * s2);
+  const dr = c.a0 + c.a1 * cw + c.a2 * c2, di = -(c.a1 * sw + c.a2 * s2);
+  return 10 * Math.log10((nr * nr + ni * ni) / (dr * dr + di * di));
+}
+function bandCoef(type, f0, g, q) {
+  const A = Math.pow(10, g / 40), w0 = 2 * Math.PI * Math.min(f0, FS / 2.2) / FS, cw = Math.cos(w0), sw = Math.sin(w0);
+  if (type === "peak") {
+    const al = sw / (2 * Math.max(q, 0.1));
+    return { b0: 1 + al * A, b1: -2 * cw, b2: 1 - al * A, a0: 1 + al / A, a1: -2 * cw, a2: 1 - al / A };
+  }
+  const al = sw / 2 * Math.SQRT2, sa = 2 * Math.sqrt(A) * al; // shelf slope 1
+  if (type === "lowshelf") return { b0: A * ((A + 1) - (A - 1) * cw + sa), b1: 2 * A * ((A - 1) - (A + 1) * cw), b2: A * ((A + 1) - (A - 1) * cw - sa), a0: (A + 1) + (A - 1) * cw + sa, a1: -2 * ((A - 1) + (A + 1) * cw), a2: (A + 1) + (A - 1) * cw - sa };
+  return { b0: A * ((A + 1) + (A - 1) * cw + sa), b1: -2 * A * ((A - 1) + (A + 1) * cw), b2: A * ((A + 1) + (A - 1) * cw - sa), a0: (A + 1) - (A - 1) * cw + sa, a1: 2 * ((A - 1) - (A + 1) * cw), a2: (A + 1) - (A - 1) * cw - sa };
+}
+const cutDb = (fc, f, order, high) => -10 * Math.log10(1 + Math.pow(high ? f / fc : fc / f, 2 * order));
+
+function eqInfo(base) {
+  const e = `${base}/eq`;
+  if (!node(e)) return null;
+  const info = { on: on(`${e}/on`), mdl: raw(`${e}/mdl`) || "STD", model: enumLong(`${e}/mdl`), mix: num(`${e}/mix`), bands: [], std: (raw(`${e}/mdl`) || "STD") === "STD" };
+  const typeOf = (t, low) => (t === "PEQ" ? "peak" : t === "CUT" ? (low ? "lowcut" : "highcut") : t === "LR24" ? (low ? "lowlr" : "highlr") : low ? "lowshelf" : "highshelf");
+  for (const k of ["l", "1", "2", "3", "4", "5", "6", "h"]) {
+    if (raw(`${e}/${k}g`) === undefined && raw(`${e}/${k}f`) === undefined) continue;
+    const t = k === "l" ? typeOf(raw(`${e}/leq`), true) : k === "h" ? typeOf(raw(`${e}/heq`), false) : "peak";
+    info.bands.push({ k, label: k === "l" ? "Low" : k === "h" ? "High" : `Band ${k}`, type: t, g: num(`${e}/${k}g`) || 0, f: num(`${e}/${k}f`), q: num(`${e}/${k}q`) || 1 });
+  }
+  const fl = `${base}/flt`;
+  if (node(fl)) {
+    const slope = (p) => Math.round((num(p) || 12) / 6);
+    info.lc = { on: on(`${fl}/lc`), f: num(`${fl}/lcf`), order: slope(`${fl}/lcs`), slope: raw(`${fl}/lcs`) };
+    info.hc = { on: on(`${fl}/hc`), f: num(`${fl}/hcf`), order: slope(`${fl}/hcs`), slope: raw(`${fl}/hcs`) };
+    if (on(`${fl}/tf`)) info.tilt = { model: enumLong(`${fl}/mdl`), tilt: num(`${fl}/tilt`) };
+  }
+  return info;
+}
+function eqResponse(info, f) {
+  let eq = 0, flt = 0;
+  for (const b of info.bands) {
+    if (!b.f) continue;
+    if (b.type === "lowcut" || b.type === "highcut") eq += cutDb(b.f, f, 2, b.type === "highcut");
+    else if (b.type === "lowlr" || b.type === "highlr") eq += 2 * cutDb(b.f, f, 2, b.type === "highlr");
+    else if (Math.abs(b.g) > 0.05) eq += biquadDb(bandCoef(b.type, b.f, b.g, b.q), f);
+  }
+  if (info.lc && info.lc.on && info.lc.f) flt += cutDb(info.lc.f, f, info.lc.order, false);
+  if (info.hc && info.hc.on && info.hc.f) flt += cutDb(info.hc.f, f, info.hc.order, true);
+  return { eq, flt };
+}
+function eqSvg(info, w, h, big) {
+  if (!info) return "";
+  const R = 18, fx = (f) => (Math.log10(f / 20) / 3) * w, fy = (db) => h / 2 - (Math.max(-R, Math.min(R, db)) / R) * (h / 2 - 2);
+  const pts = [], pre = [];
+  for (let i = 0; i <= 120; i++) {
+    const f = 20 * Math.pow(1000, i / 120);
+    const r = eqResponse(info, f);
+    pts.push(`${fx(f).toFixed(1)},${fy((info.std && info.on ? r.eq : 0) + r.flt).toFixed(1)}`);
+    if (info.std && !info.on) pre.push(`${fx(f).toFixed(1)},${fy(r.eq + r.flt).toFixed(1)}`);
+  }
+  const grid = [100, 1000, 10000].map((f) => `<line x1="${fx(f)}" x2="${fx(f)}" y1="0" y2="${h}" class="eqgrid"/>`).join("")
+    + [-12, -6, 6, 12].map((d) => `<line x1="0" x2="${w}" y1="${fy(d)}" y2="${fy(d)}" class="eqgrid faint"/>`).join("")
+    + `<line x1="0" x2="${w}" y1="${fy(0)}" y2="${fy(0)}" class="eqgrid zero"/>`;
+  const labels = big ? [[100, "100"], [1000, "1k"], [10000, "10k"]].map(([f, t]) => `<text x="${fx(f) + 3}" y="${h - 4}" class="eqlbl">${t}</text>`).join("")
+    + [12, 6, -6, -12].map((d) => `<text x="3" y="${fy(d) - 2}" class="eqlbl">${d > 0 ? "+" : MINUS}${Math.abs(d)}</text>`).join("") : "";
+  const dots = big && info.std ? info.bands.filter((b) => b.f && (Math.abs(b.g) > 0.05 || /cut|lr/.test(b.type))).map((b) => {
+    const r = eqResponse(info, b.f);
+    return `<circle cx="${fx(b.f)}" cy="${fy((info.on ? r.eq : 0) + r.flt)}" r="4" class="eqdot"><title>${esc(b.label)}: ${fmtHz(b.f)} ${fmtDb(b.g)}</title></circle>`;
+  }).join("") : "";
+  return `<svg class="eq${info.on ? "" : " off"}" viewBox="0 0 ${w} ${h}" width="100%" preserveAspectRatio="none" role="img" aria-label="EQ curve">${grid}${labels}`
+    + (pre.length ? `<polyline points="${pre.join(" ")}" class="eqline bypassed"/>` : "")
+    + `<polyline points="${pts.join(" ")}" class="eqline"/>${dots}</svg>`;
+}
+
+function dynInfo(base, part) {
+  const p = `${base}/${part}`;
+  if (!node(p) || raw(`${p}/mdl`) === undefined && raw(`${p}/on`) === undefined) return null;
+  const params = (node(p).children || []).filter((c) => !c.name.startsWith("$") && !["on", "mdl"].includes(c.name) && c.def && "value" in c.def);
+  return { on: on(`${p}/on`), mdl: raw(`${p}/mdl`), model: enumLong(`${p}/mdl`) || "", thr: num(`${p}/thr`), ratio: raw(`${p}/ratio`), range: num(`${p}/range`), gain: num(`${p}/gain`), params };
+}
+function dynSummary(d) {
+  if (!d) return "";
+  const bits = [];
+  if (d.thr !== undefined) bits.push(`thr ${fmtDb(d.thr)}`);
+  if (d.ratio) bits.push(/:/.test(d.ratio) ? d.ratio : `${+(+d.ratio).toFixed(1)}:1`);
+  if (d.range !== undefined) bits.push(`range ${Math.round(d.range)} dB`);
+  if (d.gain) bits.push(`gain ${fmtDb(d.gain)}`);
+  return bits.join(" · ");
+}
+
+// ---------------------------------------------------------------- shared view bits
+const VIEWS = [
+  { id: "home", title: "Overview", short: "Home" },
+  { id: "sources", title: "Stage & local inputs", short: "Sources", chain: true },
+  { id: "inputs", title: "Input patch", short: "Input patch", chain: true },
+  { id: "processing", title: "Processing: EQ & dynamics", short: "Processing", chain: true },
+  { id: "monitors", title: "Monitor mixes", short: "Monitor mixes", chain: true },
+  { id: "fx", title: "FX buses & FX rack", short: "FX & utility", chain: true },
+  { id: "mains", title: "Mains & matrix", short: "Mains & matrix", chain: true },
+  { id: "outputs", title: "Physical outputs", short: "Outputs", chain: true },
+  { id: "control", title: "DCAs & mute groups", short: "DCAs & mutes" },
+  { id: "grid", title: "Send grid", short: "Send grid" },
+  { id: "tree", title: "Settings tree", short: "All settings" },
+];
+const viewById = (id) => VIEWS.find((v) => v.id === id);
+
+function chip(id, extra = "") {
+  const s = strip(id);
+  if (!s) return "";
+  const warn = s.silenced ? ` muted" title="Muted: ${esc(s.muteWhy.join("; "))}` : "";
+  return `<button class="schip${warn}" data-strip="${s.id}" style="--c:${colorOf(s.col)}"><b>${esc(s.title)}</b>${s.name ? `<small>${esc(s.tag)}</small>` : ""}${extra}</button>`;
+}
+function fxChip(fid) {
+  const f = M.fx.find((x) => x.id === fid);
+  return f ? `<button class="schip fxc" data-strip="${f.id}"><b>FX${f.i}</b><small>${esc(f.model)}</small></button>` : "";
+}
+const muteBadge = (s) => (s.silenced ? `<span class="badge bad" title="${esc(s.muteWhy.join("; "))}">MUTED</span>` : "");
+function levelClass(db) {
+  if (db === undefined || isNaN(db) || db < -60) return "l0";
+  if (db >= -6) return "l4";
+  if (db >= -15) return "l3";
+  if (db >= -30) return "l2";
+  return "l1";
+}
+const LEGEND = `<div class="legend"><span>Send level:</span><span class="lv l4">above ${MINUS}6 dB</span><span class="lv l3">${MINUS}6 to ${MINUS}15</span><span class="lv l2">${MINUS}15 to ${MINUS}30</span><span class="lv l1">${MINUS}30 to ${MINUS}60</span><span class="lv l0">below ${MINUS}60 (≈ off)</span></div>`;
+
+function outLabel(o) { return `${o.conn} ${o.n}${o.name ? ` “${o.name}”` : ""}`; }
+function srcText(p) {
+  if (!p) return `<span class="faint">no source</span>`;
+  const main = p.strip ? chip(p.strip, `<small>${p.side}</small>`) : p.via ? chip(p.via) : `<b>${esc(p.label)}</b>`;
+  const sub = p.strip ? "" : `<div class="sub">${esc(p.sub)}</div>`;
+  return main + sub;
+}
+
+function viewHead(id, lead) {
+  const v = viewById(id);
+  return `<div class="vhead"><h2>${esc(v.title)}</h2>${lead ? `<p class="lead">${lead}</p>` : ""}</div>`;
+}
+function viewFoot(id) {
+  const chain = VIEWS.filter((v) => v.chain);
+  const i = chain.findIndex((v) => v.id === id);
+  if (i < 0) return `<div class="vfoot"><a class="btn" href="#/home">← Back to overview</a></div>`;
+  const prev = chain[i - 1], next = chain[i + 1];
+  return `<div class="vfoot">${prev ? `<a class="btn" href="#/${prev.id}">← ${esc(prev.short)}</a>` : `<a class="btn" href="#/home">← Overview</a>`}
+    <a class="btn ghost" href="#/home">Overview</a>${next ? `<a class="btn primary" href="#/${next.id}">${esc(next.short)} →</a>` : ""}</div>`;
+}
+
+// ---------------------------------------------------------------- home / topology
+function topoStats() {
+  const L = M.list;
+  const patched = L.ch.filter((s) => s.src).length, auxp = L.aux.filter((s) => s.src).length;
+  const named = M.inputs.reduce((a, g) => a + g.ports.filter((p) => p.name || p.usedBy.length).length, 0);
+  const phantom = M.inputs.reduce((a, g) => a + g.ports.filter((p) => p.vph).length, 0);
+  const roles = { monitor: [], fx: [], utility: [] };
+  for (const b of L.bus) if (used(b)) roles[b.role].push(b);
+  const procCh = L.ch.filter((s) => s.src);
+  const cnt = (f) => procCh.filter(f).length;
+  const eqOn = cnt((s) => on(`${s.base}/eq/on`)), compOn = cnt((s) => on(`${s.base}/dyn/on`)), gateOn = cnt((s) => on(`${s.base}/gate/on`));
+  const inserts = [...M.strips.values()].reduce((a, s) => a + s.ins.filter((x) => x.on).length, 0);
+  const fxLoaded = M.fx.filter((f) => !f.none).length;
+  const dcaUsed = L.dca.filter((d) => d.members.length).length, mgOn = L.mgrp.filter((g) => g.mute).length;
+  const routed = M.outputs.length;
+  const mainsUsed = L.main.filter((s) => liveFeeds(s).length);
+  const mtxUsed = L.mtx.filter((s) => liveFeeds(s).length || s.outs.length);
+  const sendsTo = (pred) => M.sends.filter((e) => e.live && (e.from.startsWith("ch") || e.from.startsWith("aux")) && pred(e)).length;
+  const warnOf = (ids) => M.findings.filter((f) => f.sev === "warn" && ids.includes(f.strip)).length;
+  return {
+    sources: { title: "Stage & local inputs", go: "sources", l1: `${named} sources in use`, l2: `${phantom} on 48V phantom`, members: M.inputs.flatMap((g) => g.ports.filter((p) => p.usedBy.length).map((p) => p.usedBy[0])) },
+    inputs: { title: "Input channels", go: "inputs", l1: `${patched} of ${L.ch.length} patched`, l2: `${auxp} aux inputs`, members: [...L.ch, ...L.aux].filter((s) => s.src).map((s) => s.id), warn: warnOf([...L.ch, ...L.aux].map((s) => s.id)) },
+    processing: { title: "Channel processing", go: "processing", l1: `EQ on ${eqOn} · comp on ${compOn}`, l2: `gate on ${gateOn} · ${plural(inserts, "insert")}`, members: procCh.map((s) => s.id) },
+    control: { title: "DCAs & mute groups", go: "control", l1: `${dcaUsed} DCAs in use`, l2: `${mgOn} mute group${mgOn === 1 ? "" : "s"} ON`, members: [...L.dca.filter((d) => d.members.length), ...L.mgrp].map((s) => s.id), warn: M.findings.filter((f) => f.sev === "warn" && /^mgrp|^dca/.test(f.strip)).length },
+    monitors: { title: "Monitor mixes", go: "monitors", l1: plural(roles.monitor.length, "mix", "mixes"), l2: `${sendsTo((e) => strip(e.to).role === "monitor")} sends in`, members: roles.monitor.map((s) => s.id) },
+    fxbus: { title: "FX & utility buses", go: "fx", l1: `${roles.fx.length} FX · ${roles.utility.length} utility`, l2: `${sendsTo((e) => e.type === "bus" && strip(e.to).role !== "monitor")} sends in`, members: [...roles.fx, ...roles.utility].map((s) => s.id) },
+    fxrack: { title: "FX rack", go: "fx", l1: `${fxLoaded} of ${M.fx.length} slots loaded`, l2: `${M.fx.filter((f) => f.usedBy.some((u) => u.on)).length} inserted`, members: M.fx.filter((f) => !f.none).map((f) => f.id) },
+    mains: { title: "Mains", go: "mains", l1: plural(mainsUsed.length, "main mix", "main mixes"), l2: `${sendsTo((e) => e.type === "main")} assignments`, members: L.main.map((s) => s.id), warn: warnOf(L.main.map((s) => s.id)) },
+    matrix: { title: "Matrix", go: "mains", l1: plural(mtxUsed.length, "matrix", "matrices"), l2: "speaker zones & feeds", members: mtxUsed.map((s) => s.id), warn: warnOf(L.mtx.map((s) => s.id)) },
+    outputs: { title: "Physical outputs", go: "outputs", l1: `${routed} outputs patched`, l2: uniq(M.outputs.map((o) => o.g)).length + " connectors", members: uniq(M.outputs.map((o) => (o.src.strip || o.src.via)).filter(Boolean)) },
+  };
+}
+
+const TOPO = {
+  nodes: { sources: [20, 225], inputs: [235, 225], processing: [450, 225], control: [342, 45], monitors: [680, 60], fxbus: [680, 235], fxrack: [680, 410], mains: [905, 235], matrix: [1110, 380], outputs: [1110, 130] },
+  edges: [["sources", "inputs"], ["inputs", "processing"], ["processing", "monitors"], ["processing", "fxbus"], ["processing", "mains"], ["fxbus", "fxrack", "insert"], ["fxbus", "inputs", "return"], ["mains", "matrix"], ["mains", "outputs"], ["matrix", "outputs"], ["monitors", "outputs"], ["control", "inputs", "ctl"], ["control", "processing", "ctl"]],
+  W: 190, H: 96,
+};
+function topoSvg(sel) {
+  const st = topoStats();
+  const { W, H } = TOPO;
+  const box = (k) => { const [x, y] = TOPO.nodes[k]; return { x, y, cx: x + W / 2, cy: y + H / 2 }; };
+  const edges = TOPO.edges.map(([a, b, kind]) => {
+    const A = box(a), B = box(b);
+    let d;
+    if (kind === "return") d = `M${A.x},${A.cy + 20} C${A.x - 80},${A.cy + 150} ${B.cx + 30},${B.y + H + 120} ${B.cx + 20},${B.y + H}`;
+    else if (kind === "ctl") d = `M${A.cx},${A.y + H} L${B.cx},${B.y}`;
+    else if (kind === "insert") d = `M${A.cx},${A.y + H} L${B.cx},${B.y}`;
+    else if (Math.abs(A.cy - B.cy) < 5) d = `M${A.x + W},${A.cy} L${B.x},${B.cy}`;
+    else if (B.x > A.x + W) { const mx = (A.x + W + B.x) / 2; d = `M${A.x + W},${A.cy} C${mx},${A.cy} ${mx},${B.cy} ${B.x},${B.cy}`; }
+    else d = `M${A.cx},${A.cy > B.cy ? A.y : A.y + H} L${B.cx},${A.cy > B.cy ? B.y + H : B.y}`;
+    const lbl = kind === "return" ? `<text class="elbl" x="${(A.x + B.cx) / 2 - 10}" y="${A.cy + 150}">effect returns</text>` : kind === "insert" ? `<text class="elbl" x="${A.cx + 8}" y="${(A.y + H + B.y) / 2 + 4}">inserts</text>` : "";
+    return `<path d="${d}" class="edge ${kind || ""}" marker-end="url(#arr${kind === "ctl" ? "c" : ""})"/>${lbl}`;
+  }).join("");
+  const nodes = Object.entries(TOPO.nodes).map(([k, [x, y]]) => {
+    const s = st[k];
+    return `<g class="tnode${sel === k ? " sel" : ""} t-${k}" data-topo="${k}" tabindex="0" role="button" aria-label="${esc(s.title)}">
+      <rect x="${x}" y="${y}" width="${W}" height="${H}" rx="10"/>
+      <text x="${x + 14}" y="${y + 28}" class="tt">${esc(s.title)}</text>
+      <text x="${x + 14}" y="${y + 52}" class="t1">${esc(s.l1)}</text>
+      <text x="${x + 14}" y="${y + 72}" class="t2">${esc(s.l2)}</text>
+      ${s.warn ? `<g class="twarn"><circle cx="${x + W - 14}" cy="${y + 16}" r="10"/><text x="${x + W - 14}" y="${y + 20}">${s.warn}</text></g>` : ""}
+      <text x="${x + W - 14}" y="${y + H - 10}" class="topen">↗</text></g>`;
+  }).join("");
+  return `<svg class="topo" viewBox="0 0 1320 540" role="img" aria-label="Signal flow overview">
+    <defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="ahead"/></marker>
+    <marker id="arrc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="ahead ctl"/></marker></defs>
+    <text x="20" y="200" class="colhd">IN</text><text x="1300" y="115" class="colhd" text-anchor="end">OUT</text>
+    ${edges}${nodes}</svg>`;
+}
+function topoPreview(k) {
+  if (!k) return `<div class="tprev empty">Click a box to see what's in it. Click ↗ or <b>Open</b> to jump to its page.</div>`;
+  const s = topoStats()[k];
+  const members = uniq(s.members);
+  const chips = members.map((id) => (id.startsWith("fx") ? fxChip(id) : chip(id))).join("");
+  return `<div class="tprev"><div class="tprev-h"><h3>${esc(s.title)}</h3><span class="muted">${esc(s.l1)} · ${esc(s.l2)}</span>
+    <a class="btn primary" href="#/${s.go}">Open ${esc(viewById(s.go).short)} →</a></div>
+    <div class="chips">${chips || `<span class="faint">Nothing in use.</span>`}</div></div>`;
+}
+function viewHome(sel) {
+  const meta = S.meta || {};
+  const name = raw("/$syscfg/consolename") || meta.console || "";
+  const warn = M.findings.filter((f) => f.sev === "warn"), info = M.findings.filter((f) => f.sev === "info");
+  const fitem = (f) => `<li class="${f.sev}"><button class="flink" data-strip="${f.strip}">${f.text}</button></li>`;
+  const L = M.list;
+  const cards = VIEWS.filter((v) => v.id !== "home").map((v) => `<a class="vcard" href="#/${v.id}"><b>${esc(v.title)}</b><span>${esc(VIEW_BLURB[v.id] || "")}</span></a>`).join("");
+  return `<div class="vhead"><h2>${esc(name || "Wing console")} <span class="muted">overview</span></h2>
+    <p class="lead">How signal moves through the console, left to right. Click any box to see what's in it; open it for the full page. Every name on every page can be clicked for that strip's details.</p></div>
+    <div class="card topo-wrap"><div class="topo-scroll">${topoSvg(sel)}</div>${topoPreview(sel)}</div>
+    <div class="cols2">
+      <div class="card"><h3>Worth a look <span class="muted">${warn.length} warnings · ${info.length} notes</span></h3>
+        ${M.findings.length ? `<ul class="findings">${M.findings.map(fitem).join("")}</ul>` : `<p class="faint">Nothing unusual found.</p>`}</div>
+      <div class="card"><h3>At a glance</h3><table class="kv">
+        <tr><td>Map</td><td>${esc(sourceLabel())}</td></tr>
+        <tr><td>Settings</td><td>${S.total.toLocaleString()} (${S.values.toLocaleString()} with values)</td></tr>
+        <tr><td>Input channels</td><td>${L.ch.filter(used).length} in use of ${L.ch.length}</td></tr>
+        <tr><td>Aux channels</td><td>${L.aux.filter(used).length} in use of ${L.aux.length}</td></tr>
+        <tr><td>Buses</td><td>${L.bus.filter((b) => b.role === "monitor" && used(b)).length} monitor · ${L.bus.filter((b) => b.role === "fx").length} FX · ${L.bus.filter((b) => b.role === "utility" && used(b)).length} utility</td></tr>
+        <tr><td>Mains / matrix</td><td>${L.main.length} / ${L.mtx.filter(used).length} in use</td></tr>
+        <tr><td>FX slots loaded</td><td>${M.fx.filter((f) => !f.none).length} of ${M.fx.length}</td></tr>
+        <tr><td>Outputs patched</td><td>${M.outputs.length}</td></tr></table></div>
+    </div>
+    <h3 class="sect">All pages</h3><div class="vcards">${cards}</div>`;
+}
+const VIEW_BLURB = {
+  sources: "Every stage-box and local input: label, 48V, gain, and which channel uses it.",
+  inputs: "Which source feeds each channel, with fader, DCA, mute group and mute status.",
+  processing: "EQ curve, filters, gate, compressor and inserts for every strip.",
+  monitors: "One panel per monitor mix: who each person hears, loudest first.",
+  fx: "Reverb and effect buses, where each FX is inserted, and where it returns.",
+  mains: "What is assigned to each main, and what the matrix outputs are fed from.",
+  outputs: "Every patched output connector and what feeds it.",
+  control: "What each DCA and mute group controls, and which are on.",
+  grid: "Every channel against every bus and main on one table.",
+  tree: "Browse or search all 36,000+ raw settings.",
+};
+
+// ---------------------------------------------------------------- sources
+function viewSources(prefs) {
+  const showAll = prefs.allPorts;
+  const groups = M.inputs.map((g) => {
+    const ports = g.ports.filter((p) => showAll || p.name || p.usedBy.length || p.outs.length);
+    if (!ports.length) return showAll ? "" : `<details class="card grp"><summary><b>${esc(g.conn)}</b> <span class="muted">nothing labelled or used</span></summary></details>`;
+    const rows = ports.map((p) => `<tr><td class="mono">${p.n}</td><td><b>${esc(p.name || "—")}</b></td>
+      <td>${p.vph ? `<span class="badge amber">48V</span>` : ""}${p.mute ? ` <span class="badge bad">MUTED</span>` : ""}</td>
+      <td class="num">${p.gain !== undefined ? `${(+p.gain).toFixed(1)} dB` : ""}</td>
+      <td>${p.usedBy.map((id) => chip(id)).join("") || `<span class="faint">not on a channel</span>`}</td>
+      <td>${p.outs.map((o) => `<span class="tag">${esc(outLabel(o))}</span>`).join(" ")}</td></tr>`).join("");
+    return `<details class="card grp" open><summary><b>${esc(g.conn)}</b> <span class="muted">${ports.length} shown</span></summary>
+      <div class="tscroll"><table class="list"><thead><tr><th>#</th><th>Label</th><th></th><th>Gain</th><th>Used by</th><th>Also sent straight to</th></tr></thead><tbody>${rows}</tbody></table></div></details>`;
+  }).join("");
+  return viewHead("sources", "The physical inputs: local XLRs, aux inputs, AES50 stage boxes, USB and the Dante card. Labels and 48V live on the input itself, not the channel.")
+    + `<div class="toolbar"><label><input type="checkbox" data-pref="allPorts" ${showAll ? "checked" : ""}> Show every port, including unlabelled and unused ones</label></div>`
+    + groups + viewFoot("sources");
+}
+
+// ---------------------------------------------------------------- input patch
+function patchRows(list) {
+  return list.map((s) => {
+    const p = s.src;
+    const status = s.silenced ? `<span class="badge bad" title="${esc(s.muteWhy.join("; "))}">MUTED</span><div class="sub">${esc(s.muteWhy.join("; "))}</div>` : s.faderDown ? `<span class="badge">fader −∞</span>` : "";
+    return `<tr class="click" data-strip="${s.id}"><td><span class="cbar" style="background:${colorOf(s.col)}"></span><b>${esc(s.title)}</b><div class="sub">${s.tag}</div></td>
+      <td>${p ? `<b>${esc(p.label)}</b><div class="sub">${esc(p.sub)}${s.returnOf ? " (effect / bus return)" : ""}</div>` : `<span class="faint">no source</span>`}</td>
+      <td>${p && p.vph ? `<span class="badge amber">48V</span>` : ""}</td>
+      <td class="num">${p && p.gain !== undefined ? `${(+p.gain).toFixed(1)}` : ""}${s.trim ? `<div class="sub">trim ${fmtDb(s.trim)}</div>` : ""}</td>
+      <td class="num">${fmtDb(s.fdr)}</td>
+      <td>${[...s.dcas, ...s.mgrps].map((g) => `<span class="tag${strip(g).mute ? " bad" : ""}">${esc(strip(g).k === "dca" ? "DCA" : "MG")} ${esc(strip(g).title)}</span>`).join(" ")}</td>
+      <td>${status}</td></tr>`;
+  }).join("");
+}
+function viewInputs(prefs) {
+  const hide = prefs.hideUnused !== false;
+  const ch = M.list.ch.filter((s) => !hide || used(s)), aux = M.list.aux.filter((s) => !hide || used(s));
+  const head = `<thead><tr><th>Channel</th><th>Comes from</th><th>48V</th><th>Gain</th><th>Fader</th><th>DCA / mute groups</th><th>Status</th></tr></thead>`;
+  return viewHead("inputs", "Who is on which channel and where the signal comes in. Click a row for that channel's full details.")
+    + `<div class="toolbar"><label><input type="checkbox" data-pref="hideUnused" ${hide ? "checked" : ""}> Hide channels with no name, source or sends</label>
+       <span class="muted">${ch.length + aux.length} of ${M.list.ch.length + M.list.aux.length} shown</span></div>`
+    + `<div class="card"><h3>Input channels</h3><div class="tscroll"><table class="list patch">${head}<tbody>${patchRows(ch)}</tbody></table></div></div>`
+    + `<div class="card"><h3>Aux channels <span class="muted">playback, computers and effect returns</span></h3><div class="tscroll"><table class="list patch">${head}<tbody>${patchRows(aux)}</tbody></table></div></div>`
+    + viewFoot("inputs");
+}
+
+// ---------------------------------------------------------------- processing
+function procCard(s) {
+  const eq = eqInfo(s.base), gate = dynInfo(s.base, "gate"), dyn = dynInfo(s.base, "dyn");
+  const chips = [];
+  if (eq && eq.lc && eq.lc.on) chips.push(`<span class="pchip on">LC ${fmtHz(eq.lc.f)}</span>`);
+  if (eq && eq.hc && eq.hc.on) chips.push(`<span class="pchip on">HC ${fmtHz(eq.hc.f)}</span>`);
+  if (eq && eq.tilt) chips.push(`<span class="pchip on">${esc(eq.tilt.model || "Tilt")} ${fmtDb(eq.tilt.tilt)}</span>`);
+  if (gate) chips.push(`<span class="pchip${gate.on ? " on" : ""}" title="${esc(gate.model)}">${gate.on ? "" : "<s>"}Gate${gate.on ? "" : "</s>"} ${esc(dynSummary(gate))}</span>`);
+  if (dyn) chips.push(`<span class="pchip${dyn.on ? " on" : ""}" title="${esc(dyn.model)}">${dyn.on ? "" : "<s>"}${esc(dyn.mdl === "COMP" ? "Comp" : dyn.model)}${dyn.on ? "" : "</s>"} ${esc(dynSummary(dyn))}</span>`);
+  for (const x of s.ins) if (x.on) { const f = M.fx.find((q) => `FX${q.i}` === x.fx); chips.push(`<span class="pchip ins">${x.slot === "preins" ? "Pre" : "Post"}-insert ${x.fx}${f ? ` ${esc(f.model)}` : ""}</span>`); }
+  return `<button class="pcard" data-strip="${s.id}" style="--c:${colorOf(s.col)}"><div class="pc-h"><b>${esc(s.title)}</b><small>${s.tag}</small>${muteBadge(s)}
+    <span class="pc-eq">${eq ? (eq.on ? (eq.std ? "EQ" : esc(eq.model)) : "EQ off") : ""}${eq && eq.mix && eq.mix !== 100 ? ` · mix ${Math.round(eq.mix)}%` : ""}</span></div>
+    ${eq ? eqSvg(eq, 300, 80, false) : ""}<div class="pchips">${chips.join("") || `<span class="faint">no processing</span>`}</div></button>`;
+}
+function viewProcessing(prefs) {
+  const tab = prefs.procTab || "ch";
+  const tabs = ["ch", "aux", "bus", "main", "mtx"].map((k) => `<button class="seg${tab === k ? " on" : ""}" data-pref-set="procTab" data-val="${k}">${KIND[k].many}</button>`).join("");
+  const list = M.list[tab].filter(used);
+  return viewHead("processing", "Each strip's EQ curve (with low/high cut) and its gate, compressor and inserts. Curves are drawn from the settings and are close to, but not exactly, what WING Edit shows. Click a strip for every value.")
+    + `<div class="toolbar segs">${tabs}</div><div class="pgrid">${list.map(procCard).join("") || `<p class="faint">Nothing in use.</p>`}</div>` + viewFoot("processing");
+}
+
+// ---------------------------------------------------------------- buses
+function busPanel(b, prefs) {
+  const feeds = b.feeds.filter((e) => e.on && e.type !== "main").sort((x, y) => (y.db ?? -999) - (x.db ?? -999));
+  const live = feeds.filter((e) => !(e.db < -60)), quiet = feeds.filter((e) => e.db < -60);
+  const rows = (prefs.showQuiet ? feeds : live).map((e) => {
+    const s = strip(e.from), w = Math.max(2, Math.min(100, ((e.db ?? -60) + 60) / 70 * 100));
+    return `<tr class="click${s.silenced ? " muted" : ""}" data-strip="${s.id}"><td><span class="cbar" style="background:${colorOf(s.col)}"></span>${esc(s.title)} <small class="faint">${s.tag}</small>${s.silenced ? ` <span class="badge bad" title="${esc(s.muteWhy.join("; "))}">MUTED</span>` : ""}</td>
+      <td class="bar"><span class="lvbar ${levelClass(e.db)}" style="width:${w}%"></span></td><td class="num lv ${levelClass(e.db)}">${fmtDb(e.db)}</td><td class="mode">${esc((e.mode || "").slice(0, 4))}</td></tr>`;
+  }).join("");
+  const ins = b.ins.filter((x) => x.on).map((x) => fxChip(`fx${x.fx.slice(2)}`)).join("");
+  const dest = [...b.outs.map((o) => `<span class="tag">${esc(outLabel(o))} ← ${o.src.side}</span>`), ...liveSends(b).map((e) => chip(e.to)), ...b.returns.map((id) => chip(id, "<small>return</small>"))];
+  return `<div class="bpanel" id="p-${b.id}"><div class="bp-h" data-strip="${b.id}" style="--c:${colorOf(b.col)}"><b>${esc(b.title)}</b><small>${b.tag} · master ${fmtDb(b.fdr)}${on(`${b.base}/busmono`) ? " · mono" : ""}</small>${muteBadge(b)}</div>
+    ${ins ? `<div class="bp-row"><span class="muted">Insert</span> ${ins}</div>` : ""}
+    <table class="bp-t"><tbody>${rows || `<tr><td class="faint">nothing sent here</td></tr>`}</tbody></table>
+    ${!prefs.showQuiet && quiet.length ? `<div class="bp-note">${plural(quiet.length, "more send")} below ${MINUS}60 dB (effectively off)</div>` : ""}
+    ${dest.length ? `<div class="bp-row dest"><span class="muted">Goes to</span> ${dest.join(" ")}</div>` : ""}</div>`;
+}
+function busToolbar(prefs) {
+  return `<div class="toolbar"><label><input type="checkbox" data-pref="showQuiet" ${prefs.showQuiet ? "checked" : ""}> Show sends below ${MINUS}60 dB</label>${LEGEND}</div>`;
+}
+function viewMonitors(prefs) {
+  const list = M.list.bus.filter((b) => b.role === "monitor" && used(b));
+  return viewHead("monitors", "One panel per monitor mix: who each person hears, loudest first, and which output it leaves on (e.g. the IEM transmitter on the stage box). PRE = pre-fader send.")
+    + busToolbar(prefs) + `<div class="bgrid">${list.map((b) => busPanel(b, prefs)).join("")}</div>` + viewFoot("monitors");
+}
+function fxCard(f) {
+  const users = f.usedBy.map((u) => `${chip(u.strip, `<small>${u.slot === "preins" ? "pre" : "post"}${u.on ? "" : " · off"}</small>`)}`).join("");
+  const returns = uniq(f.usedBy.filter((u) => u.on).flatMap((u) => strip(u.strip).returns)).map((id) => chip(id)).join("");
+  let body = "";
+  const geq = f.params.filter((c) => /^\d+k?\d*$/.test(c.name) && node(c.path)?.def?.unit === "dB");
+  if (geq.length >= 10) {
+    const bw = 300 / geq.length;
+    body = `<svg class="geq" viewBox="0 0 300 70" width="100%" preserveAspectRatio="none">${geq.map((c, i) => { const g = num(c.path) || 0, hgt = Math.min(34, Math.abs(g) / 15 * 34); return `<rect x="${i * bw + 1}" y="${g >= 0 ? 35 - hgt : 35}" width="${bw - 2}" height="${Math.max(hgt, 0.5)}" class="${g >= 0 ? "up" : "dn"}"><title>${esc(c.name)} Hz: ${fmtDb(g)}</title></rect>`; }).join("")}<line x1="0" x2="300" y1="35" y2="35" class="eqgrid zero"/></svg><div class="sub">20 Hz … 20 kHz, ±15 dB</div>`;
+  } else if (!f.none) {
+    body = `<table class="kv small">${f.params.slice(0, 10).map((c) => `<tr><td>${esc(c.def.longname || c.name)}</td><td>${esc(fmt(c.def, raw(c.path)))}</td></tr>`).join("")}</table>`;
+  }
+  return `<div class="fxcard${f.none ? " empty" : ""}" data-strip="${f.id}"><div class="fx-h"><b>FX${f.i}</b> <span>${esc(f.none ? "empty" : f.model)}</span></div>
+    ${f.none ? "" : `<div class="bp-row"><span class="muted">Inserted on</span> ${users || `<span class="faint">nothing</span>`}</div>${returns ? `<div class="bp-row"><span class="muted">Returns on</span> ${returns}</div>` : ""}${body}`}</div>`;
+}
+function viewFx(prefs) {
+  const fx = M.list.bus.filter((b) => b.role === "fx" && used(b)), util = M.list.bus.filter((b) => b.role === "utility" && used(b));
+  return viewHead("fx", "Effect buses with the FX inserted on them and the aux channel each one returns on, then utility buses, then all 16 FX slots.")
+    + busToolbar(prefs)
+    + `<h3 class="sect">Effect buses</h3><div class="bgrid">${fx.map((b) => busPanel(b, prefs)).join("") || `<p class="faint">None.</p>`}</div>`
+    + `<h3 class="sect">Utility buses</h3><div class="bgrid">${util.map((b) => busPanel(b, prefs)).join("") || `<p class="faint">None.</p>`}</div>`
+    + `<h3 class="sect">FX rack</h3><div class="fxgrid">${M.fx.map(fxCard).join("")}</div>` + viewFoot("fx");
+}
+
+// ---------------------------------------------------------------- mains & matrix
+function mainPanel(s) {
+  const feeds = s.feeds.filter((e) => e.live);
+  const byKind = (k) => feeds.filter((e) => stripKind(e.from) === k).map((e) => chip(e.from, Math.abs(e.db || 0) > 0.05 && s.k === "main" ? `<small>${fmtDb(e.db)}</small>` : s.k === "mtx" ? `<small>${fmtDb(e.db)}</small>` : ""));
+  const parts = ["ch", "aux", "bus", "main"].map((k) => { const c = byKind(k); return c.length ? `<div class="mgrp"><span class="muted">${KIND[k].many}</span><div class="chips">${c.join("")}</div></div>` : ""; }).join("");
+  const warn = s.faderDown && (feeds.length || s.outs.length) ? `<div class="alert">Fader is at ${MINUS}∞: nothing comes out.</div>` : "";
+  const dest = [...s.outs.map((o) => `<span class="tag">${esc(outLabel(o))} ← ${o.src.side}</span>`), ...liveSends(s).map((e) => chip(e.to, `<small>${fmtDb(e.db)}</small>`))];
+  return `<div class="mpanel${s.k === "mtx" ? " mtx" : ""}" id="p-${s.id}"><div class="bp-h" data-strip="${s.id}" style="--c:${colorOf(s.col)}"><b>${esc(s.title)}</b><small>${s.tag} · fader ${fmtDb(s.fdr)} · ${plural(feeds.length, "source")}</small>${muteBadge(s)}</div>
+    ${warn}${parts || `<div class="faint pad">nothing assigned</div>`}${dest.length ? `<div class="bp-row dest"><span class="muted">Goes to</span> ${dest.join(" ")}</div>` : ""}</div>`;
+}
+function viewMains() {
+  const mtx = M.list.mtx.filter(used);
+  return viewHead("mains", "Each main mix with everything assigned to it, and the matrix outputs it feeds. Chips show the assign level where it isn't 0 dB.")
+    + `<h3 class="sect">Mains</h3><div class="mgrid">${M.list.main.map(mainPanel).join("")}</div>`
+    + `<h3 class="sect" id="matrix">Matrix</h3><div class="mgrid">${mtx.map(mainPanel).join("") || `<p class="faint">No matrix outputs in use.</p>`}</div>` + viewFoot("mains");
+}
+
+// ---------------------------------------------------------------- outputs
+function viewOutputs(prefs) {
+  const showAll = prefs.allPorts;
+  const groups = M.outGroups.map((g) => {
+    const ports = g.ports.filter((p) => showAll || p.src);
+    if (!ports.length) return `<details class="card grp"><summary><b>${esc(g.conn)}</b> <span class="muted">nothing patched (${g.ports.length} ports)</span></summary></details>`;
+    const rows = ports.map((o) => `<tr><td class="mono">${o.n}</td><td>${esc(o.name)}</td><td>${srcText(o.src)}</td><td class="sub">${o.src ? esc(o.src.short) : ""}</td></tr>`).join("");
+    return `<details class="card grp" open><summary><b>${esc(g.conn)}</b> <span class="muted">${g.ports.filter((p) => p.src).length} of ${g.ports.length} patched</span></summary>
+      <div class="tscroll"><table class="list"><thead><tr><th>Out</th><th>Label</th><th>Fed by</th><th>Raw</th></tr></thead><tbody>${rows}</tbody></table></div></details>`;
+  }).join("");
+  return viewHead("outputs", "Every output connection and what feeds it. Each bus, main and matrix has two ports: odd = left, even = right (a mono one carries the same signal on both). User signals are direct feeds of a channel (for example, multitrack or a second console).")
+    + `<div class="toolbar"><label><input type="checkbox" data-pref="allPorts" ${showAll ? "checked" : ""}> Show unpatched ports too</label></div>` + groups + viewFoot("outputs");
+}
+
+// ---------------------------------------------------------------- control
+function viewControl() {
+  const card = (g) => {
+    const items = g.members.map((id) => chip(id)).join("");
+    const state = g.k === "mgrp" ? (g.mute ? `<div class="alert">Mute is ON: everything below is silenced.</div>` : "") : `<div class="sub">fader ${fmtDb(g.fdr)}${g.mute ? " · <b class='bad'>MUTED</b>" : ""}</div>`;
+    return `<div class="mpanel${g.mute ? " hot" : ""}"><div class="bp-h" data-strip="${g.id}" style="--c:${colorOf(g.col)}"><b>${esc(g.title)}</b><small>${g.tag} · ${g.k === "dca" ? "volume group" : "mute group"}</small></div>${state}
+      <div class="chips pad">${items || `<span class="faint">no strips assigned</span>`}</div></div>`;
+  };
+  const dcas = M.list.dca.filter((d) => d.members.length || d.name);
+  return viewHead("control", "What each DCA (volume group) and mute group controls. Membership comes from the #D / #M tags on each strip.")
+    + `<h3 class="sect">Mute groups</h3><div class="mgrid">${M.list.mgrp.map(card).join("")}</div>`
+    + `<h3 class="sect">DCAs</h3><div class="mgrid">${dcas.map(card).join("")}</div>` + viewFoot("control");
+}
+
+// ---------------------------------------------------------------- send grid
+function viewGrid() {
+  const cols = [...M.list.bus.filter(used), ...M.list.main];
+  const rowsIds = [...M.list.ch, ...M.list.aux].filter((s) => s.sends.some((e) => e.live));
+  const head = `<tr><th class="corner"></th>${cols.map((c) => `<th class="${c.k}" data-strip="${c.id}" title="${esc(c.title)}"><span class="vh">${esc(c.title)}</span></th>`).join("")}</tr>`;
+  const body = rowsIds.map((s) => {
+    const by = new Map(s.sends.filter((e) => e.live).map((e) => [e.to, e]));
+    return `<tr><th data-strip="${s.id}">${esc(s.title)} <small>${s.tag}</small>${s.silenced ? ` <span class="badge bad">M</span>` : ""}</th>${cols.map((c) => {
+      const e = by.get(c.id);
+      if (!e) return `<td></td>`;
+      if (c.k === "main") return `<td class="mainon" title="${esc(`${s.title} → ${c.title}`)}">●</td>`;
+      return `<td class="lv ${levelClass(e.db)}" title="${esc(`${s.title} → ${c.title}: ${fmtDb(e.db)} ${e.mode}`)}">${esc(fmtDb(e.db, false))}</td>`;
+    }).join("")}</tr>`;
+  }).join("");
+  return viewHead("grid", "Rows are channels, columns are buses (send level in dB) and mains (● = assigned). Click a name for its details.")
+    + `<div class="toolbar">${LEGEND}</div><div class="card gridwrap"><table class="sgrid"><thead>${head}</thead><tbody>${body}</tbody></table></div>` + viewFoot("grid");
+}
+
+// ---------------------------------------------------------------- strip details (drawer)
+function kvRows(pairs) { return pairs.filter((p) => p && p[1] !== undefined && p[1] !== "").map(([k, v]) => `<tr><td>${k}</td><td>${v}</td></tr>`).join(""); }
+function paramTable(params) {
+  return `<table class="kv small">${params.map((c) => `<tr><td>${esc(c.def.longname || c.name)}</td><td>${esc(fmt(c.def, raw(c.path)))}</td></tr>`).join("")}</table>`;
+}
+function detailFx(f) {
+  return `<div class="dr-h"><h2>FX${f.i} <span class="muted">${esc(f.model)}</span></h2></div>
+    <section><h4>Inserted on</h4><div class="chips">${f.usedBy.map((u) => chip(u.strip, `<small>${u.slot === "preins" ? "pre" : "post"}${u.on ? "" : " · off"}</small>`)).join("") || `<span class="faint">nothing</span>`}</div></section>
+    <section><h4>Settings</h4>${f.params.length ? paramTable(f.params) : `<p class="faint">No parameters.</p>`}</section>
+    <div class="dr-links"><a class="btn" href="#/fx">FX page</a><a class="btn" href="#/tree${encodeURI(f.base)}">Open in settings tree</a></div>`;
+}
+function detail(id) {
+  if (/^fx\d+$/.test(id)) { const f = M.fx.find((x) => x.id === id); return f ? detailFx(f) : ""; }
+  const s = strip(id);
+  if (!s) return `<p class="faint">Not found: ${esc(id)}</p>`;
+  const parts = [];
+  parts.push(`<div class="dr-h" style="--c:${colorOf(s.col)}"><h2>${esc(s.title)}</h2><div class="muted">${KIND[s.k].title} ${s.i}${s.name ? "" : " (no name)"}</div>
+    ${s.silenced ? `<div class="alert">Muted because ${esc(s.muteWhy.join(" and "))}.</div>` : ""}</div>`);
+  const top = [["Fader", s.fdr !== undefined ? fmtDb(s.fdr) : undefined], ["Mute button", s.k === "mgrp" || s.k === "dca" || ["ch", "aux", "bus", "main", "mtx"].includes(s.k) ? (s.mute ? "<b class='bad'>ON</b>" : "off") : undefined]];
+  if (raw(`${s.base}/pan`) !== undefined) top.push(["Pan", disp(`${s.base}/pan`)]);
+  if (s.tags.length) top.push(["Tags", s.tags.map((t) => `<span class="tag">${esc(t)}</span>`).join(" ")]);
+  parts.push(`<section><table class="kv">${kvRows(top)}</table></section>`);
+
+  if (s.k === "ch" || s.k === "aux") {
+    const p = s.src;
+    parts.push(`<section><h4>Source</h4><table class="kv">${kvRows([
+      ["Input", p ? `<b>${esc(p.label)}</b> <span class="muted">${esc(p.sub)}</span>${p.strip ? " " + chip(p.strip) : ""}` : "<span class='faint'>none</span>"],
+      ["Head-amp gain", p && p.gain !== undefined ? `${(+p.gain).toFixed(1)} dB` : undefined],
+      ["48V phantom", p && p.phys ? (p.vph ? "<b>ON</b>" : "off") : undefined],
+      ["Trim", disp(`${s.base}/in/set/trim`)], ["Polarity", s.inv ? "<b>inverted</b>" : undefined],
+      ["Mode", disp(`${s.base}/in/set/$mode`)], ["Delay", on(`${s.base}/in/set/dlyon`) ? disp(`${s.base}/in/set/dly`) : undefined],
+      ["Alt source", s.alt ? `${esc(s.alt.label)} <span class="muted">${esc(s.alt.sub)}</span>` : undefined],
+    ])}</table></section>`);
+  }
+  if (["ch", "aux", "bus", "main", "mtx"].includes(s.k)) {
+    const eq = eqInfo(s.base), gate = dynInfo(s.base, "gate"), dyn = dynInfo(s.base, "dyn");
+    if (eq) {
+      const bands = eq.std ? `<table class="list small"><thead><tr><th>Band</th><th>Type</th><th>Freq</th><th>Gain</th><th>Q</th></tr></thead><tbody>${eq.bands.map((b) => `<tr><td>${b.label}</td><td>${b.type.replace("shelf", " shelf").replace("lowcut", "low cut").replace("highcut", "high cut").replace(/lowlr|highlr/, "LR24 cut")}</td><td>${fmtHz(b.f)}</td><td class="${Math.abs(b.g) > 0.05 ? "" : "faint"}">${fmtDb(b.g)}</td><td>${b.type === "peak" ? (+b.q).toFixed(2) : ""}</td></tr>`).join("")}</tbody></table>`
+        : paramTable((node(`${s.base}/eq`).children || []).filter((c) => !c.name.startsWith("$") && c.def && "value" in c.def));
+      const flt = eq.lc ? `<div class="sub">Low cut ${eq.lc.on ? `<b>${fmtHz(eq.lc.f)}</b> ${esc(eq.lc.slope || "")} dB/oct` : "off"} · High cut ${eq.hc.on ? `<b>${fmtHz(eq.hc.f)}</b> ${esc(eq.hc.slope || "")} dB/oct` : "off"}${eq.tilt ? ` · ${esc(eq.tilt.model)} ${fmtDb(eq.tilt.tilt)}` : ""}</div>` : "";
+      parts.push(`<section><h4>EQ <span class="muted">${esc(eq.model || "")}${eq.on ? "" : " · OFF (dashed line shows what it would do)"}${eq.mix && eq.mix !== 100 ? ` · mix ${Math.round(eq.mix)}%` : ""}</span></h4>${eqSvg(eq, 520, 160, true)}${flt}${bands}</section>`);
+    }
+    for (const [title, d] of [["Gate", gate], ["Dynamics", dyn]]) if (d) parts.push(`<section><h4>${title} <span class="muted">${esc(d.model)} · ${d.on ? "ON" : "off"}</span></h4>${paramTable(d.params)}</section>`);
+    const insRows = s.ins.map((x) => `<tr><td>${x.slot === "preins" ? "Pre-insert" : "Post-insert"}</td><td>${fxChip(`fx${x.fx.slice(2)}`)} ${x.on ? "" : "<span class='faint'>(switched off)</span>"}</td></tr>`).join("");
+    if (insRows || raw(`${s.base}/proc`)) parts.push(`<section><h4>Inserts & order</h4><table class="kv">${insRows}${raw(`${s.base}/proc`) ? `<tr><td>Processing order</td><td class="mono">${esc(raw(`${s.base}/proc`))} <span class="muted">(G gate, E EQ, D dynamics, I insert)</span></td></tr>` : ""}</table></section>`);
+  }
+  const sendList = (list, title) => list.length ? `<section><h4>${title}</h4><table class="list small">${list.map((e) => `<tr class="click" data-strip="${e.to === s.id ? e.from : e.to}"><td>${chip(e.to === s.id ? e.from : e.to)}</td><td class="num lv ${e.type === "main" ? "" : levelClass(e.db)}">${fmtDb(e.db)}</td><td class="mode">${esc(e.mode)}</td></tr>`).join("")}</table></section>` : "";
+  const ls = liveSends(s).sort((a, b) => (b.db ?? -999) - (a.db ?? -999));
+  parts.push(sendList(ls.filter((e) => e.type === "main"), "Assigned to mains"));
+  parts.push(sendList(ls.filter((e) => e.type === "bus"), "Sends to buses"));
+  parts.push(sendList(ls.filter((e) => e.type === "mtx"), "Sends to matrix"));
+  if (["bus", "main", "mtx"].includes(s.k)) parts.push(sendList(liveFeeds(s).sort((a, b) => (b.db ?? -999) - (a.db ?? -999)), "Fed by"));
+  if (s.outs.length) parts.push(`<section><h4>Physical outputs</h4><table class="list small">${s.outs.map((o) => `<tr><td>${esc(outLabel(o))}</td><td>${o.src.side ? (o.src.side === "mono" ? "mono" : `${o.src.side} side`) : esc(o.src.sub)}</td></tr>`).join("")}</table></section>`);
+  if (s.returns.length) parts.push(`<section><h4>Returns on</h4><div class="chips">${s.returns.map((id) => chip(id)).join("")}</div></section>`);
+  if (s.members.length) parts.push(`<section><h4>Controls</h4><div class="chips">${s.members.map((id) => chip(id)).join("")}</div></section>`);
+  if (s.dcas.length || s.mgrps.length) parts.push(`<section><h4>Groups</h4><div class="chips">${[...s.dcas, ...s.mgrps].map((g) => chip(g)).join("")}</div></section>`);
+  const pages = { ch: ["inputs", "processing", "grid"], aux: ["inputs", "processing", "grid"], bus: [s.role === "monitor" ? "monitors" : "fx", "processing"], main: ["mains", "outputs"], mtx: ["mains", "outputs"], dca: ["control"], mgrp: ["control"] }[s.k] || [];
+  parts.push(`<div class="dr-links">${pages.map((v) => `<a class="btn" href="#/${v}/${s.id}">${esc(viewById(v).short)} page</a>`).join("")}<a class="btn" href="#/tree${encodeURI(s.base)}">Open in settings tree</a></div>`);
+  return parts.join("");
+}
+
+// ---------------------------------------------------------------- snapshot (.snap) -> map lines
+function snapToLines(snap, schema) {
+  if (!snap || typeof snap !== "object" || !snap.ae_data) throw new Error("This doesn't look like a WING snapshot (no ae_data section).");
+  const out = [], seen = new Set();
+  const norm = (v) => (typeof v === "boolean" ? (v ? "1" : "0") : typeof v === "number" ? String(Number.isInteger(v) ? v : +v.toPrecision(8)) : v === null ? "" : String(v));
+  const defFor = (path, leafVal) => {
+    const d = schema && schema.get(path);
+    let def;
+    if (d) { def = Object.assign({}, d); delete def.value; delete def.display; }
+    else {
+      def = { name: path.slice(path.lastIndexOf("/") + 1), fullname: path };
+      def.type = leafVal === undefined ? "node" : typeof leafVal === "boolean" ? "integer" : typeof leafVal === "number" ? "linear float" : "string";
+      if (typeof leafVal === "boolean") { def.minint = 0; def.maxint = 1; }
+    }
+    def.fullname = path;
+    return def;
+  };
+  const walk = (o, path) => {
+    if (o && typeof o === "object" && !Array.isArray(o)) {
+      if (path && !seen.has(path)) { seen.add(path); out.push(defFor(path)); }
+      for (const [k, v] of Object.entries(o)) walk(v, `${path}/${k}`);
+    } else {
+      const def = defFor(path, o);
+      def.value = Array.isArray(o) ? JSON.stringify(o) : norm(o);
+      out.push(def);
+    }
+  };
+  walk(snap.ae_data, "");
+  return out;
+}
+function snapMeta(snap, fileName, lastModified) {
+  return { kind: "snap", file: fileName, created: Math.round((lastModified || Date.now()) / 1000), creator: `${snap.creator || ""} ${snap.creator_vers || ""}`.trim(), console: snap.creator_name || "", snapType: snap.type || "" };
+}
+function linesToCsv(lines) {
+  const q = (s) => (/[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s);
+  const rows = ["Setting,Value,Path,Type"];
+  for (const d of lines) if (d.type !== "node") rows.push([q(d.label || d.longname || d.name || ""), q(fmt(d, d.value)), q(d.fullname), q(d.type || "")].join(","));
+  return rows.join("\n") + "\n";
+}
+function linesToJs(lines, meta, key) {
+  return `// Generated by viewer/index.html from ${meta.file}. Loaded automatically by viewer/index.html.\nwindow.WING_MAPS = window.WING_MAPS || {};\nwindow.WING_MAPS.${key} = ${JSON.stringify(Object.assign({}, meta, { lines: [] })).replace(/\[\]\}$/, "[\n")}${lines.map((d) => JSON.stringify(d)).join("\n,")}\n]};\n`;
+}
+
+function sourceLabel() {
+  const m = S.meta || {};
+  const when = m.created ? new Date(m.created * 1000).toLocaleString([], { dateStyle: "medium", timeStyle: "short" }) : "";
+  if (m.kind === "live") return `Live console map${m.file ? ` (${m.file})` : ""}${when ? `, read ${when}` : ""}`;
+  if (m.kind === "snap") return `Snapshot ${m.file}${m.creator ? ` from ${m.creator}` : ""}${when ? `, saved ${when}` : ""}`;
+  if (m.kind === "archive") return `Archived console map ${m.file}${when ? `, read ${when}` : ""}`;
+  return m.file || m.label || "Map file";
+}
+
+</script>
+<script id="ui-code">
+"use strict";
+// Browser wiring for the dashboard: data sources, routing, drawer, settings
+// tree, .snap import/save, sharing and printing. The views are in #app-code.
+
+// The page as loaded, before anything is rendered into it. "Share this map"
+// rebuilds a self-contained copy from these parts (a file:// page can't read
+// other files, which is why the code lives inline in index.html).
+const PAGE = (() => {
+  const body = document.body.cloneNode(true);
+  body.querySelectorAll("script").forEach((s) => s.remove());
+  return { lang: document.documentElement.lang, head: document.head.innerHTML, body: body.innerHTML,
+    app: document.getElementById("app-code").textContent, ui: document.getElementById("ui-code").textContent };
+})();
+
+const $ = (s, el = document) => el.querySelector(s);
+const store = {
+  get(k, d) { try { const v = localStorage.getItem("wingdash." + k); return v === null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem("wingdash." + k, JSON.stringify(v)); } catch { /* private mode etc. */ } },
+};
+let prefs = store.get("prefs", {});
+const sources = new Map(); // key -> { meta, lines }
+let currentKey = null;
+
+// ---------------------------------------------------------------- sources
+function registerBundled() {
+  const reg = window.WING_MAPS || {};
+  for (const [key, m] of Object.entries(reg)) {
+    if (!m || !Array.isArray(m.lines)) continue;
+    const meta = Object.assign({}, m);
+    delete meta.lines;
+    sources.set(key, { meta, lines: m.lines });
+  }
+}
+function sourceName(key) {
+  const s = sources.get(key);
+  if (!s) return key;
+  const m = s.meta;
+  const when = m.created ? new Date(m.created * 1000).toLocaleString([], { dateStyle: "medium", timeStyle: "short" }) : "";
+  const newest = key === newestKey() ? " \u2013 newest" : "";
+  if (key === "live") return `Console map, ${when}${newest}`;
+  if (key === "snap") return `Snapshot map, ${when}${newest}`;
+  if (m.kind === "archive") return `Archived map, ${when}`;
+  return `${m.kind === "snap" ? "Snapshot" : "File"}: ${m.file}${m.saved === false ? " (not saved)" : ""}`;
+}
+function refreshSourceSelect() {
+  const sel = $("#srcSel");
+  sel.innerHTML = [...sources.keys()].map((k) => `<option value="${esc(k)}"${k === currentKey ? " selected" : ""}>${esc(sourceName(k))}</option>`).join("");
+  sel.hidden = sources.size === 0;
+  const m = currentKey && sources.get(currentKey)?.meta;
+  $("#saveSnap").hidden = !(m && m.kind === "snap" && m.saved === false);
+}
+function useSource(key) {
+  const src = sources.get(key);
+  if (!src) return;
+  currentKey = key;
+  S = buildState(src.lines, src.meta);
+  buildModel();
+  treeReset();
+  refreshSourceSelect();
+  $("#mapInfo").textContent = sourceLabel();
+  $("#empty").hidden = true;
+  $("#app").hidden = false;
+  const newest = newestKey();
+  if (newest && key !== newest && sources.get(key).meta.kind !== "snap") {
+    banner(`You're viewing an older map (${esc(sourceLabel())}). <button class="btn" id="toNewest">Back to the newest map</button>`);
+    $("#toNewest").onclick = () => { banner(""); useSource(newest); };
+  }
+  render();
+}
+
+// The newest of the maps that load automatically (latest console map and
+// saved snapshot map). wingmap rewrites the console map on every session, so
+// this always follows the most recent mapping.
+function newestKey() {
+  let best = null;
+  for (const k of ["live", "snap"]) {
+    const m = sources.get(k)?.meta;
+    if (m && (!best || (m.created || 0) > (sources.get(best).meta.created || 0))) best = k;
+  }
+  return best;
+}
+
+// ---------------------------------------------------------------- routing
+function parseHash() {
+  const h = decodeURI(location.hash.replace(/^#\/?/, ""));
+  const [view, ...rest] = h.split("/");
+  const v = viewById(view) ? view : "home";
+  return { view: v, arg: v === "tree" ? (rest.length ? "/" + rest.join("/") : "") : rest[0] || "" };
+}
+const isItem = (a) => /^(ch|aux|bus|main|mtx|dca|mgrp|fx)\d+$/.test(a);
+function go(view, arg) { location.hash = `#/${view}${arg ? (arg.startsWith("/") ? encodeURI(arg) : "/" + arg) : ""}`; }
+
+let lastView = null;
+function render() {
+  if (!S) return;
+  const { view, arg } = parseHash();
+  document.querySelectorAll("#flownav a").forEach((a) => a.classList.toggle("active", a.dataset.view === view));
+  const el = $("#view");
+  const keepScroll = lastView === view;
+  const y = window.scrollY;
+  if (view === "tree") {
+    el.innerHTML = viewHead("tree", "Every setting the map contains. Search, or expand folders; select a setting to see its value and options.") + `<div id="treeHost"></div>` + viewFoot("tree");
+    treeMount($("#treeHost"), arg);
+  } else {
+    const fn = { home: () => viewHome(isItem(arg) ? "" : arg), sources: () => viewSources(prefs), inputs: () => viewInputs(prefs), processing: () => viewProcessing(prefs), monitors: () => viewMonitors(prefs), fx: () => viewFx(prefs), mains: viewMains, outputs: () => viewOutputs(prefs), control: viewControl, grid: viewGrid }[view];
+    el.innerHTML = fn();
+  }
+  const item = view !== "tree" && isItem(arg) ? arg : "";
+  openDrawer(item);
+  if (item) {
+    const target = document.getElementById("p-" + item) || el.querySelector(`[data-strip="${item}"]`);
+    if (target && !keepScroll) target.scrollIntoView({ block: "center" });
+    if (target) target.classList.add("flash");
+  } else if (keepScroll) window.scrollTo(0, y);
+  else window.scrollTo(0, 0);
+  lastView = view;
+  document.title = `${viewById(view).title} · Wing Dashboard`;
+}
+
+function openDrawer(id) {
+  const d = $("#drawer");
+  if (!id) { d.hidden = true; document.body.classList.remove("drawer-open"); return; }
+  $("#drawerBody").innerHTML = detail(id);
+  d.hidden = false;
+  document.body.classList.add("drawer-open");
+  $("#drawerBody").scrollTop = 0;
+}
+function closeDrawer() { const { view, arg } = parseHash(); go(view, view === "home" && !isItem(arg) ? arg : ""); }
+
+// ---------------------------------------------------------------- events
+document.addEventListener("click", (e) => {
+  const t = e.target;
+  if (t.closest("#drawerClose")) return closeDrawer();
+  const topo = t.closest("[data-topo]");
+  if (topo) {
+    const k = topo.dataset.topo;
+    if (t.closest(".topen")) return go(topoStats()[k].go);
+    const { arg } = parseHash();
+    return go("home", arg === k ? "" : k);
+  }
+  const ps = t.closest("[data-pref-set]");
+  if (ps) { prefs[ps.dataset.prefSet] = ps.dataset.val; store.set("prefs", prefs); return render(); }
+  const st = t.closest("[data-strip]");
+  if (st && !t.closest("a")) {
+    e.preventDefault();
+    const { view, arg } = parseHash();
+    if (view === "tree") return go("home", st.dataset.strip);
+    return go(view, st.dataset.strip === arg && !t.closest("#drawer") ? "" : st.dataset.strip);
+  }
+});
+document.addEventListener("dblclick", (e) => { const topo = e.target.closest("[data-topo]"); if (topo) go(topoStats()[topo.dataset.topo].go); });
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && !$("#drawer").hidden) closeDrawer();
+  if ((e.key === "Enter" || e.key === " ") && e.target.matches("[data-topo]")) { e.preventDefault(); e.target.dispatchEvent(new MouseEvent("click", { bubbles: true })); }
+});
+document.addEventListener("change", (e) => {
+  const p = e.target.closest("[data-pref]");
+  if (p) { prefs[p.dataset.pref] = p.checked; store.set("prefs", prefs); render(); }
+});
+window.addEventListener("hashchange", render);
+
+// ---------------------------------------------------------------- opening files
+async function openMapFile(file) {
+  const text = await file.text();
+  if (/\.snap$/i.test(file.name) || /^\s*\{\s*"type"\s*:\s*"snapshot/.test(text.slice(0, 200))) return openSnap(file, text);
+  // Archived sessions are named church-wing-map_YYYY-MM-DD_HHMM.jsonl.
+  const t = /(\d{4})-(\d{2})-(\d{2})_(\d{2})(\d{2})/.exec(file.name);
+  const created = t ? Math.round(new Date(+t[1], t[2] - 1, +t[3], +t[4], +t[5]) / 1000) : Math.round(file.lastModified / 1000);
+  const st = buildState(text, { kind: t ? "archive" : "file", file: file.name, created });
+  if (!st.total) return banner(`${file.name} doesn't look like a wingmap file (no settings found).`, true);
+  const key = "file:" + file.name;
+  sources.set(key, { meta: st.meta, lines: text });
+  useSource(key);
+}
+
+let sampleLoading = null;
+function loadSampleSchema() {
+  if (window.WING_SAMPLE_JSONL) return Promise.resolve();
+  if (!sampleLoading) sampleLoading = new Promise((res, rej) => {
+    const s = document.createElement("script");
+    s.src = "sample-data.js"; s.onload = res; s.onerror = () => rej(new Error("No live map and no bundled sample-data.js to read setting names from."));
+    document.head.appendChild(s);
+  });
+  return sampleLoading;
+}
+async function schemaForSnap() {
+  const live = sources.get("live");
+  const lines = live ? live.lines : (await loadSampleSchema(), window.WING_SAMPLE_JSONL.split("\n").filter(Boolean).map((l) => JSON.parse(l)));
+  const m = new Map();
+  for (const d of (typeof lines === "string" ? lines.split("\n").filter(Boolean).map((l) => JSON.parse(l)) : lines)) m.set(d.fullname, d);
+  return m;
+}
+async function openSnap(file, text) {
+  banner(`Mapping ${file.name}…`);
+  try {
+    const snap = JSON.parse(text);
+    const lines = snapToLines(snap, await schemaForSnap());
+    const meta = snapMeta(snap, file.name, file.lastModified);
+    meta.saved = false;
+    const key = "snapfile:" + file.name;
+    sources.set(key, { meta, lines });
+    useSource(key);
+    banner(`Mapped ${file.name}: ${lines.length.toLocaleString()} settings. Click <b>Share this map</b> to download it as one page you can send, or <b>Save to maps/snapmap</b> to keep it here.`);
+  } catch (err) {
+    banner(`Couldn't map ${esc(file.name)}: ${esc(err.message)}`, true);
+  }
+}
+
+function banner(html, bad) {
+  const b = $("#banner");
+  b.innerHTML = html ? `${html} <button class="x" aria-label="Dismiss">×</button>` : "";
+  b.hidden = !html;
+  b.classList.toggle("bad", !!bad);
+  const x = $(".x", b);
+  if (x) x.onclick = () => (b.hidden = true);
+}
+
+// Writes the snapshot map into Libwing/maps/snapmap. Chrome/Edge can write
+// into a folder you pick; Safari and Firefox can only download, so the files
+// land in Downloads and need moving.
+async function saveSnap() {
+  const src = sources.get(currentKey);
+  if (!src || src.meta.kind !== "snap") return;
+  const base = src.meta.file.replace(/\.snap$/i, "").replace(/[^\w.-]+/g, "-");
+  const meta = Object.assign({}, src.meta);
+  delete meta.saved;
+  const files = [
+    [`${base}.jsonl`, src.lines.map((d) => JSON.stringify(d)).join("\n") + "\n"],
+    [`${base}.csv`, linesToCsv(src.lines)],
+    ["snap-map.js", linesToJs(src.lines, meta, "snap")],
+  ];
+  if (window.showDirectoryPicker) {
+    try {
+      const dir = await window.showDirectoryPicker({ id: "wing-snapmap", mode: "readwrite" });
+      for (const [name, text] of files) {
+        const w = await (await dir.getFileHandle(name, { create: true })).createWritable();
+        await w.write(text); await w.close();
+      }
+      src.meta.saved = true;
+      refreshSourceSelect();
+      return banner(`Saved ${files.map((f) => f[0]).join(", ")} into the <b>${esc(dir.name)}</b> folder.${dir.name === "snapmap" ? "" : " (For automatic loading, that should be Libwing/maps/snapmap.)"}`);
+    } catch (err) {
+      if (err.name === "AbortError") return;
+    }
+  }
+  for (const [name, text] of files) {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([text], { type: "text/plain" }));
+    a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    await new Promise((r) => setTimeout(r, 400));
+  }
+  src.meta.saved = true;
+  refreshSourceSelect();
+  banner(`Downloaded ${files.map((f) => `<code>${esc(f[0])}</code>`).join(", ")}. Move them into <code>Libwing/maps/snapmap/</code> and this snapshot will load automatically (pick “Snapshot map” at the top).`);
+}
+
+// ---------------------------------------------------------------- share
+// Downloads one self-contained page of the map on screen: this page's code
+// plus that map's data, nothing else needed to open it.
+function shareMap() {
+  const src = sources.get(currentKey);
+  if (!src) return;
+  let lines;
+  try { lines = typeof src.lines === "string" ? src.lines.split("\n").filter((l) => l.trim()).map((l) => JSON.parse(l)) : src.lines; }
+  catch (err) { return banner(`Couldn't read this map to share it: ${esc(err.message)}`, true); }
+  const meta = Object.assign({}, src.meta);
+  delete meta.saved;
+  const key = meta.kind === "snap" ? "snap" : "live";
+  const data = linesToJs(lines, meta, key).replace(/<\/script/gi, "<\\/script");
+  const tag = (attrs, text) => `<script${attrs}>${text}</` + "script>\n";
+  const html = `<!doctype html>\n<html lang="${PAGE.lang}">\n<head>${PAGE.head}</head>\n<body>${PAGE.body}\n`
+    + tag("", "\n" + data) + tag(' id="app-code"', PAGE.app) + tag(' id="ui-code"', PAGE.ui) + "</body>\n</html>\n";
+  const d = new Date((meta.created || Date.now() / 1000) * 1000);
+  const day = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const what = meta.kind === "snap" ? `snapshot ${meta.file.replace(/\.snap$/i, "")}` : meta.kind === "archive" ? "archived map" : "console map";
+  const name = `Wing Dashboard - ${what} - ${day}.html`.replace(/[\/:*?"<>|]+/g, "-");
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([html], { type: "text/html" }));
+  a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+  banner(`Downloaded <b>${esc(name)}</b> (${(html.length / 1e6).toFixed(1)} MB). It's one self-contained page: send it as is, and they just open it.`);
+}
+
+// ---------------------------------------------------------------- print
+function printAll() {
+  const host = $("#printAll");
+  const parts = [viewHome(""), viewSources(prefs), viewInputs(prefs), viewProcessing(Object.assign({}, prefs, { procTab: "ch" })), viewMonitors(prefs), viewFx(prefs), viewMains(), viewOutputs(prefs), viewControl(), viewGrid()];
+  host.innerHTML = `<div class="print-title">${esc(sourceLabel())}</div>` + parts.map((p) => `<section class="ppage">${p}</section>`).join("");
+  host.querySelectorAll(".vfoot").forEach((x) => x.remove());
+  host.querySelectorAll("details").forEach((d) => (d.open = true));
+  document.body.classList.add("printing-all");
+  const done = () => { document.body.classList.remove("printing-all"); host.innerHTML = ""; window.removeEventListener("afterprint", done); };
+  window.addEventListener("afterprint", done);
+  setTimeout(() => window.print(), 50);
+}
+
+// ---------------------------------------------------------------- settings tree
+let tree = null;
+function treeReset() { tree = null; }
+function treeMount(host, path) {
+  host.innerHTML = `<div class="treeview card"><div class="side">
+      <div class="searchbar"><input id="tsearch" type="search" placeholder="Search settings, e.g. ch 1 mute, trim, AES50…" autocomplete="off"><div id="searchInfo"></div></div>
+      <div id="tree"></div><div id="results" hidden></div></div>
+    <div id="detail"><div class="faint pad">Select a setting on the left to see its details.</div></div></div>`;
+  tree = { rowEls: new Map(), selected: null };
+  const t = $("#tree");
+  const frag = document.createDocumentFragment();
+  for (const c of S.root.children) frag.appendChild(makeRow(c, 0));
+  t.appendChild(frag);
+  let timer;
+  $("#tsearch").addEventListener("input", (e) => { clearTimeout(timer); timer = setTimeout(() => runSearch(e.target.value), 150); });
+  if (path) reveal(path);
+}
+function makeRow(n, depth) {
+  const el = document.createElement("div");
+  el.className = "row";
+  el.style.paddingLeft = 8 + depth * 16 + "px";
+  const hasKids = n.children.length > 0;
+  const d = n.def || {};
+  const right = hasKids ? `<span class="cnt">${n.leaves.toLocaleString()}</span>` : ("value" in d ? `<span class="val">${esc(fmt(d, String(d.value)))}</span>` : "");
+  el.innerHTML = `<span class="caret">${hasKids ? "▶" : ""}</span><span class="nm">${esc(n.name || "/")}</span>` + (d.longname ? `<span class="ln">${esc(d.longname)}</span>` : "") + right;
+  el.onclick = (e) => { if (hasKids && (e.target.classList.contains("caret") || n === tree.selected)) toggle(n); select(n); };
+  el.ondblclick = () => hasKids && toggle(n);
+  tree.rowEls.set(n.path, { el, n, depth, kids: null });
+  return el;
+}
+function toggle(n, open) {
+  const r = tree.rowEls.get(n.path);
+  if (!r) return;
+  const isOpen = !!(r.kids && !r.kids.hidden);
+  const want = open === undefined ? !isOpen : open;
+  if (want && !r.kids) {
+    r.kids = document.createElement("div");
+    const frag = document.createDocumentFragment();
+    for (const c of n.children) frag.appendChild(makeRow(c, r.depth + 1));
+    r.kids.appendChild(frag);
+    r.el.after(r.kids);
+  }
+  if (r.kids) r.kids.hidden = !want;
+  r.el.querySelector(".caret").textContent = n.children.length ? (want ? "▼" : "▶") : "";
+}
+function reveal(path) {
+  $("#tree").hidden = false; $("#results").hidden = true;
+  const n = node(path);
+  if (!n) return;
+  const parts = path.split("/").slice(1);
+  for (let i = 1; i < parts.length; i++) toggle(node("/" + parts.slice(0, i).join("/")), true);
+  if (n.children.length) toggle(n, true);
+  select(n);
+  tree.rowEls.get(path)?.el.scrollIntoView({ block: "center" });
+}
+function select(n) {
+  if (tree.selected) tree.rowEls.get(tree.selected.path)?.el.classList.remove("sel");
+  tree.selected = n;
+  tree.rowEls.get(n.path)?.el.classList.add("sel");
+  const d = n.def || {};
+  const rows = [];
+  const add = (k, v) => rows.push(`<tr><td>${k}</td><td>${v}</td></tr>`);
+  if (d.longname) add("Name", esc(d.longname));
+  if (d.label) add("Label", esc(d.label));
+  add("Path", `<span class="mono">${esc(n.path)}</span>`);
+  add("Type", esc(d.type || "node"));
+  if (d.unit) add("Unit", esc(d.unit));
+  if (d.read_only) add("Read only", "yes");
+  if (d.minfloat !== undefined || d.maxfloat !== undefined) add("Range", `${d.minfloat ?? "?"} to ${d.maxfloat ?? "?"}` + (d.steps ? ` (${d.steps} steps)` : ""));
+  if (d.minint !== undefined || d.maxint !== undefined) add("Range", `${d.minint ?? "?"} to ${d.maxint ?? "?"}`);
+  if ("value" in d) add("Value", `<b>${esc(fmt(d, String(d.value)))}</b> <span class="muted mono">${esc(String(d.value))}</span>`);
+  if (d.items) {
+    const cur = enumItem(d, "value" in d ? String(d.value) : undefined);
+    add("Options", `<div class="chips">${d.items.map((i) => `<span class="opt${i === cur ? " cur" : ""}">${esc(i.item)}${i.longitem && i.longitem !== i.item ? " · " + esc(i.longitem) : ""}</span>`).join("")}</div>`);
+  }
+  if (n.children.length) add("Contains", `${n.children.length} items, ${n.leaves.toLocaleString()} settings`);
+  $("#detail").innerHTML = `<h3 class="mono">${esc(n.path || "/")}</h3><table class="kv">${rows.join("")}</table>`;
+  history.replaceState(null, "", `#/tree${encodeURI(n.path)}`);
+}
+function runSearch(q) {
+  const terms = q.toLowerCase().split(/\s+/).filter(Boolean);
+  if (!terms.length || q.trim().length < 2) { $("#tree").hidden = false; $("#results").hidden = true; $("#searchInfo").textContent = ""; return; }
+  const hits = [];
+  let total = 0;
+  for (const n of S.nodes.values()) {
+    if (!n.path) continue;
+    const hay = (n.path + " " + (n.def?.longname || "") + " " + (n.def && "value" in n.def ? n.def.value : "")).toLowerCase().replace(/\//g, " ");
+    const words = hay.split(/\s+/);
+    if (terms.every((t) => (/^\d+$/.test(t) ? words.includes(t) : hay.includes(t)))) { total++; if (hits.length < 400) hits.push(n); }
+  }
+  const r = $("#results");
+  r.innerHTML = hits.map((n) => { const d = n.def || {}; return `<div class="res" data-p="${esc(n.path)}"><div class="mono">${esc(n.path)}</div><div class="ln">${esc(d.longname || d.type || "")}${"value" in d ? " = " + esc(fmt(d, String(d.value))) : ""}</div></div>`; }).join("");
+  r.querySelectorAll(".res").forEach((el) => (el.onclick = () => { $("#tsearch").value = ""; reveal(el.dataset.p); }));
+  $("#tree").hidden = true; r.hidden = false;
+  $("#searchInfo").textContent = total ? `${total.toLocaleString()} matches${total > hits.length ? `, showing first ${hits.length}` : ""}` : "No matches";
+}
+
+// ---------------------------------------------------------------- boot
+function boot() {
+  $("#flownav").innerHTML = VIEWS.map((v, i) => `${v.id === "control" ? `<span class="navsep"></span>` : ""}<a href="#/${v.id}" data-view="${v.id}">${esc(v.short)}</a>${v.chain && VIEWS[i + 1]?.chain ? `<span class="arrow">›</span>` : ""}`).join("");
+  $("#srcSel").onchange = (e) => useSource(e.target.value);
+  $("#openFile").onchange = (e) => { const f = e.target.files[0]; e.target.value = ""; if (f) openMapFile(f); };
+  $("#openSnap").onchange = (e) => { const f = e.target.files[0]; e.target.value = ""; if (f) f.text().then((t) => openSnap(f, t)); };
+  $("#saveSnap").onclick = saveSnap;
+  $("#printBtn").onclick = printAll;
+  $("#shareBtn").onclick = shareMap;
+  window.addEventListener("dragover", (e) => e.preventDefault());
+  window.addEventListener("drop", (e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) openMapFile(f); });
+  registerBundled();
+  const key = newestKey() || sources.keys().next().value;
+  if (key) useSource(key);
+  else { refreshSourceSelect(); $("#empty").hidden = false; $("#app").hidden = true; }
+}
+boot();
+</script>
+</body>
+</html>
